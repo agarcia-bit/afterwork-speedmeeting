@@ -47,6 +47,8 @@ export function normalize(input: unknown): EventState {
   return {
     title: typeof raw.title === 'string' ? raw.title : base.title,
     participants,
+    tableMode: raw.tableMode === 'perTable' ? 'perTable' : base.tableMode,
+    tableCount: clamp(raw.tableCount, 1, 40, base.tableCount),
     perTable: clamp(raw.perTable, 2, 12, base.perTable),
     rotationCount: clamp(raw.rotationCount, 1, 12, base.rotationCount),
     rotationMinutes: clamp(raw.rotationMinutes, 1, 60, base.rotationMinutes),

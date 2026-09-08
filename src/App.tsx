@@ -4,7 +4,7 @@ import Settings from './components/Settings'
 import RotationsView from './components/Rotations'
 import ScreenMode from './components/ScreenMode'
 import DataModal from './components/DataModal'
-import { solve, statsFor, tableSizes } from './solver'
+import { planSizes, solve, statsFor } from './solver'
 import { load, normalize, save } from './storage'
 import type { EventState, Participant } from './types'
 
@@ -26,25 +26,36 @@ export default function App() {
     [state.participants],
   )
 
+  // Le format de la salle, dérivé une seule fois et partagé par toute l'appli.
+  const sizes = useMemo(
+    () => planSizes(present.length, state.tableMode, state.perTable, state.tableCount),
+    [present.length, state.tableMode, state.perTable, state.tableCount],
+  )
+
   const stats = useMemo(
     () =>
       state.rotations.length > 0
         ? statsFor(
             present.map((p) => ({ id: p.id, group: p.group })),
             state.rotations,
-            state.perTable,
+            sizes,
           )
         : null,
-    [present, state.rotations, state.perTable],
+    [present, state.rotations, sizes],
   )
 
   const warnings = useMemo(() => {
     const out: string[] = []
     if (present.length === 0) return out
 
-    const sizes = tableSizes(present.length, state.perTable)
     const tableCount = sizes.length
     const biggest = Math.max(...sizes)
+
+    if (state.tableMode === 'count' && tableCount < state.tableCount) {
+      out.push(
+        `Tu demandes ${state.tableCount} tables, mais ${present.length} présents ne permettent d'en garnir que ${tableCount} (2 personnes minimum par table).`,
+      )
+    }
 
     const counts = new Map<string, number>()
     for (const p of present) {
@@ -54,7 +65,7 @@ export default function App() {
     for (const [g, n] of counts) {
       if (n > tableCount) {
         out.push(
-          `!Le groupe « ${g} » compte ${n} personnes pour seulement ${tableCount} tables : au moins ${n - tableCount} de ses membres se retrouvent ensemble à chaque rotation. Réduis le nombre de places par table pour créer plus de tables.`,
+          `!Le groupe « ${g} » compte ${n} personnes pour seulement ${tableCount} tables : au moins ${n - tableCount} de ses membres se retrouvent ensemble à chaque rotation. Il faudrait ${n} tables pour les séparer tous.`,
         )
       }
     }
@@ -72,7 +83,7 @@ export default function App() {
       )
     }
     return out
-  }, [present, state.perTable, state.rotationCount, stats])
+  }, [present, sizes, state.tableMode, state.tableCount, state.rotationCount, stats])
 
   // --- Participants ---
 
@@ -113,7 +124,7 @@ export default function App() {
     setTimeout(() => {
       const result = solve({
         participants: present.map((p) => ({ id: p.id, group: p.group })),
-        perTable: state.perTable,
+        sizes,
         rotationCount: state.rotationCount,
         locked: state.rotations.slice(0, state.lockedCount),
         current: state.rotations,
@@ -170,7 +181,10 @@ export default function App() {
       <div className="layout">
         <div className="col">
           <Settings
+            tableMode={state.tableMode}
+            tableCount={state.tableCount}
             perTable={state.perTable}
+            sizes={sizes}
             rotationCount={state.rotationCount}
             rotationMinutes={state.rotationMinutes}
             presentCount={present.length}

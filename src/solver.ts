@@ -19,8 +19,8 @@ export interface SolverParticipant {
 
 export interface SolveOptions {
   participants: SolverParticipant[]
-  /** Nombre de participants visé par table. */
-  perTable: number
+  /** Format de la salle : la taille de chaque table, dans l'ordre. */
+  sizes: number[]
   /** Nombre total de rotations souhaité, rotations verrouillées comprises. */
   rotationCount: number
   /** Rotations déjà jouées, conservées telles quelles (listes d'identifiants). */
@@ -81,17 +81,29 @@ function mulberry32(a: number) {
   }
 }
 
+/** Ce qui fixe le format de la salle : le nombre de tables, ou les places par table. */
+export type TableMode = 'count' | 'perTable'
+
 /**
- * Tailles des tables pour `n` participants avec un objectif de `perTable`.
- * Les tables sont équilibrées (jamais d'écart de plus d'une personne) et on
- * refuse les tables de moins de 2 personnes en réduisant leur nombre.
+ * Répartit `n` participants en tables équilibrées — jamais plus d'une personne
+ * d'écart entre deux tables.
+ *
+ * Le nombre de tables est soit imposé (`count` : la salle en compte ce
+ * nombre-là), soit déduit du nombre de places souhaité par table. Dans les deux
+ * cas on refuse les tables de moins de 2 personnes, en réduisant leur nombre.
  */
-export function tableSizes(n: number, perTable: number): number[] {
+export function planSizes(
+  n: number,
+  mode: TableMode,
+  perTable: number,
+  tableCount: number,
+): number[] {
   if (n <= 0) return []
-  const target = Math.max(2, Math.floor(perTable))
-  if (n <= target) return [n]
-  let count = Math.ceil(n / target)
-  while (count > 1 && Math.floor(n / count) < 2) count--
+  let count =
+    mode === 'count'
+      ? Math.max(1, Math.floor(tableCount))
+      : Math.ceil(n / Math.max(2, Math.floor(perTable)))
+  count = Math.max(1, Math.min(count, Math.floor(n / 2) || 1))
   const base = Math.floor(n / count)
   const rem = n % count
   return Array.from({ length: count }, (_, i) => base + (i < rem ? 1 : 0))
@@ -340,7 +352,7 @@ function statsFrom(
 }
 
 export function solve(options: SolveOptions): SolveResult {
-  const { participants, perTable, rotationCount } = options
+  const { participants, sizes, rotationCount } = options
   const n = participants.length
   const groups = participants.map((p) => p.group.trim())
   const index = new Map(participants.map((p, i) => [p.id, i]))
@@ -353,7 +365,6 @@ export function solve(options: SolveOptions): SolveResult {
       .filter((table) => table.length > 0),
   )
 
-  const sizes = tableSizes(n, perTable)
   const freeCount = Math.max(0, rotationCount - locked.length)
 
   if (n === 0) {
@@ -464,7 +475,7 @@ function shuffleByGroupSize(groups: string[], rnd: () => number): number[] {
 export function statsFor(
   participants: SolverParticipant[],
   rotations: string[][][],
-  perTable: number,
+  sizes: number[],
 ): SolveStats {
   const index = new Map(participants.map((p, i) => [p.id, i]))
   const board = new Board(participants.map((p) => p.group.trim()))
@@ -474,10 +485,5 @@ export function statsFor(
       board.addTable(idx)
     }
   }
-  return statsFrom(
-    board,
-    tableSizes(participants.length, perTable),
-    participants.length,
-    planBounds(participants, rotations),
-  )
+  return statsFrom(board, sizes, participants.length, planBounds(participants, rotations))
 }

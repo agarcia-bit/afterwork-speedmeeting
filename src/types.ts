@@ -8,7 +8,11 @@ export interface Participant {
 export interface EventState {
   title: string
   participants: Participant[]
-  /** Nombre de participants visé par table. */
+  /** Ce que l'organisateur fixe : le nombre de tables, ou les places par table. */
+  tableMode: 'count' | 'perTable'
+  /** Nombre de tables de la salle (utilisé quand tableMode vaut 'count'). */
+  tableCount: number
+  /** Nombre de participants visé par table (utilisé quand tableMode vaut 'perTable'). */
   perTable: number
   /** Nombre de rotations souhaité. */
   rotationCount: number
@@ -23,6 +27,8 @@ export interface EventState {
 export const emptyEvent = (): EventState => ({
   title: 'Afterwork INTERASSO',
   participants: [],
+  tableMode: 'count',
+  tableCount: 5,
   perTable: 5,
   rotationCount: 4,
   rotationMinutes: 12,

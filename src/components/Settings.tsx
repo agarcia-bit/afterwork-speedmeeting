@@ -1,12 +1,22 @@
-import { tableSizes } from '../solver'
+import type { TableMode } from '../solver'
 
 interface Props {
+  tableMode: TableMode
+  tableCount: number
   perTable: number
+  /** Format effectif de la salle, calculé par l'appli. */
+  sizes: number[]
   rotationCount: number
   rotationMinutes: number
   presentCount: number
   lockedCount: number
-  onChange: (patch: { perTable?: number; rotationCount?: number; rotationMinutes?: number }) => void
+  onChange: (patch: {
+    tableMode?: TableMode
+    tableCount?: number
+    perTable?: number
+    rotationCount?: number
+    rotationMinutes?: number
+  }) => void
   onGenerate: () => void
   onReset: () => void
   busy: boolean
@@ -19,6 +29,7 @@ function Stepper({
   onChange,
   label,
   suffix,
+  derived = false,
 }: {
   value: number
   min: number
@@ -26,13 +37,16 @@ function Stepper({
   onChange: (v: number) => void
   label: string
   suffix?: string
+  /** Valeur calculée à partir de l'autre réglage : la modifier reprend la main. */
+  derived?: boolean
 }) {
   const set = (v: number) => onChange(Math.min(max, Math.max(min, v)))
   return (
-    <div className="field">
+    <div className={`field${derived ? ' derived' : ''}`}>
       <label>
         {label}
         {suffix ? ` (${suffix})` : ''}
+        {derived && <em>auto</em>}
       </label>
       <div className="stepper">
         <button type="button" onClick={() => set(value - 1)} aria-label={`${label} moins`}>
@@ -55,7 +69,10 @@ function Stepper({
 }
 
 export default function Settings({
+  tableMode,
+  tableCount,
   perTable,
+  sizes,
   rotationCount,
   rotationMinutes,
   presentCount,
@@ -65,8 +82,12 @@ export default function Settings({
   onReset,
   busy,
 }: Props) {
-  const sizes = tableSizes(presentCount, perTable)
   const biggest = sizes.length > 0 ? Math.max(...sizes) : 0
+  // Chacun des deux réglages est saisissable : celui qu'on modifie pilote l'autre.
+  // Le réglage piloté affiche la consigne saisie, l'autre le résultat calculé.
+  const shownTables = tableMode === 'count' ? tableCount : sizes.length || tableCount
+  const shownPerTable = tableMode === 'perTable' ? perTable : biggest || perTable
+
   // Au-delà de ce nombre de tours, tout le monde a rencontré tout le monde :
   // des re-rencontres deviennent mathématiquement inévitables.
   const maxCleanRotations = biggest > 1 ? Math.floor((presentCount - 1) / (biggest - 1)) : 0
@@ -80,11 +101,20 @@ export default function Settings({
 
       <div className="fields">
         <Stepper
+          label="Tables"
+          value={shownTables}
+          min={1}
+          max={40}
+          derived={tableMode === 'perTable'}
+          onChange={(v) => onChange({ tableMode: 'count', tableCount: v })}
+        />
+        <Stepper
           label="Par table"
-          value={perTable}
+          value={shownPerTable}
           min={2}
           max={12}
-          onChange={(v) => onChange({ perTable: v })}
+          derived={tableMode === 'count'}
+          onChange={(v) => onChange({ tableMode: 'perTable', perTable: v })}
         />
         <Stepper
           label="Rotations"
