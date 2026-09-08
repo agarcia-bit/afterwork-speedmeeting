@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import type { Participant } from '../types'
 import type { SolveStats } from '../solver'
+import { groupColor } from '../colors'
 import TableCard from './TableCard'
 
 interface Props {
@@ -25,6 +27,25 @@ export default function Rotations({
   onLock,
   onPrint,
 }: Props) {
+  const [focus, setFocus] = useState<string | null>(null)
+
+  const focusPerson = focus ? (people.get(focus) ?? null) : null
+  const trail = focusPerson
+    ? rotations.map((rot) => {
+        const t = rot.findIndex((table) => table.includes(focusPerson.id))
+        return t === -1 ? null : t + 1
+      })
+    : []
+
+  // Les groupes présents dans le tirage : la couleur remplace le nom sur les cartes.
+  const legend = new Map<string, string>()
+  for (const rot of rotations)
+    for (const table of rot)
+      for (const id of table) {
+        const g = people.get(id)?.group.trim()
+        if (g) legend.set(g, groupColor(g))
+      }
+
   if (rotations.length === 0) {
     return (
       <section className="card">
@@ -51,9 +72,22 @@ export default function Rotations({
 
       {stats && (
         <div className="stats">
-          <div className={`stat ${stats.groupConflicts === 0 ? 'good' : 'bad'}`}>
+          <div
+            className={`stat ${
+              stats.groupConflicts === 0
+                ? 'good'
+                : stats.groupConflicts <= stats.minConflicts
+                  ? 'warn'
+                  : 'bad'
+            }`}
+          >
             <div className="stat-value">{stats.groupConflicts}</div>
-            <div className="stat-label">Conflit{stats.groupConflicts > 1 ? 's' : ''} de groupe</div>
+            <div className="stat-label">
+              Conflit{stats.groupConflicts > 1 ? 's' : ''} de groupe
+              {stats.minConflicts > 0 && stats.groupConflicts <= stats.minConflicts
+                ? ' · minimum inévitable'
+                : ''}
+            </div>
           </div>
           <div className={`stat ${stats.uniqueRatio > 0.95 ? 'good' : stats.uniqueRatio > 0.8 ? 'warn' : 'bad'}`}>
             <div className="stat-value">{pct(stats.uniqueRatio)}</div>
@@ -61,7 +95,9 @@ export default function Rotations({
           </div>
           <div className="stat">
             <div className="stat-value">{stats.repeatEncounters}</div>
-            <div className="stat-label">Doublons</div>
+            <div className="stat-label">
+              Doublons{stats.minRepeats > 0 ? ` · plancher ${stats.minRepeats}` : ''}
+            </div>
           </div>
           <div className="stat">
             <div className="stat-value">{stats.uniquePairs}</div>
@@ -70,11 +106,62 @@ export default function Rotations({
         </div>
       )}
 
+      {focusPerson && (
+        <div className="focus-bar">
+          <span className="dot" style={{ background: groupColor(focusPerson.group) }} />
+          <b>{focusPerson.name}</b>
+          <span className="focus-trail">
+            {trail.map((t, i) => (
+              <span key={i}>
+                {i > 0 && <i>→</i>}
+                {t === null ? '—' : `Table ${t}`}
+              </span>
+            ))}
+          </span>
+          <button className="btn btn-icon" onClick={() => setFocus(null)} aria-label="Ne plus suivre">
+            ×
+          </button>
+        </div>
+      )}
+
+      {stats && (
+        <div className={`verdict ${stats.optimal ? 'ok' : ''}`}>
+          {stats.optimal ? (
+            <>
+              <b>Optimum atteint.</b> Aucun autre tirage ne fera mieux avec ces réglages —
+              regénérer ne changera rien.
+            </>
+          ) : (
+            <>
+              <b>Meilleur tirage trouvé en 2 s.</b> Regénérer repart de celui-ci et ne peut que
+              l'améliorer, jamais le dégrader.
+            </>
+          )}
+        </div>
+      )}
+
       {warnings.map((w, i) => (
         <div className={`banner ${w.startsWith('!') ? 'bad' : 'warn'}`} key={i}>
           {w.replace(/^!/, '')}
         </div>
       ))}
+
+      {legend.size > 0 && (
+        <div className="legend plan-legend">
+          {[...legend].map(([g, color]) => (
+            <span className="chip" key={g}>
+              <span className="dot" style={{ background: color }} />
+              {g}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {!focusPerson && (
+        <p className="plan-hint">
+          Clique sur un nom pour suivre son parcours d'une rotation à l'autre.
+        </p>
+      )}
 
       {rotations.map((rot, r) => {
         const locked = r < lockedCount
@@ -100,7 +187,14 @@ export default function Rotations({
             </div>
             <div className="tables">
               {rot.map((ids, t) => (
-                <TableCard key={t} index={t} ids={ids} people={people} />
+                <TableCard
+                  key={t}
+                  index={t}
+                  ids={ids}
+                  people={people}
+                  focusId={focus}
+                  onFocus={(id) => setFocus((cur) => (cur === id ? null : id))}
+                />
               ))}
             </div>
           </div>

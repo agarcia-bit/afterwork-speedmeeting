@@ -116,6 +116,7 @@ export default function App() {
         perTable: state.perTable,
         rotationCount: state.rotationCount,
         locked: state.rotations.slice(0, state.lockedCount),
+        current: state.rotations,
         seed: Date.now() & 0x7fffffff,
       })
       setState((s) => ({

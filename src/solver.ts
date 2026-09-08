@@ -25,8 +25,16 @@ export interface SolveOptions {
   rotationCount: number
   /** Rotations déjà jouées, conservées telles quelles (listes d'identifiants). */
   locked?: string[][][]
-  /** Nombre de tirages complets comparés entre eux. */
+  /**
+   * Tirage actuellement affiché. Il sert de point de départ : une regénération
+   * repart de lui et ne le remplace que par strictement mieux, au lieu de
+   * relancer les dés à chaque clic.
+   */
+  current?: string[][][]
+  /** Plafond de tirages comparés entre eux. */
   restarts?: number
+  /** Temps maximum de recherche, en millisecondes. */
+  timeBudgetMs?: number
   seed?: number
 }
 
@@ -48,6 +56,11 @@ export interface SolveStats {
   coverage: number
   /** Nombre maximal de fois qu'une même paire se retrouve ensemble. */
   maxMeet: number
+  /** Minimum atteignable, tous tirages confondus. */
+  minConflicts: number
+  minRepeats: number
+  /** Vrai quand le tirage atteint ces minimums : inutile de regénérer. */
+  optimal: boolean
 }
 
 export interface SolveResult {
@@ -82,6 +95,48 @@ export function tableSizes(n: number, perTable: number): number[] {
   const base = Math.floor(n / count)
   const rem = n % count
   return Array.from({ length: count }, (_, i) => base + (i < rem ? 1 : 0))
+}
+
+/**
+ * Conflits inévitables sur une rotation : un groupe de `g` personnes réparti
+ * au mieux sur `tables` tables laisse forcément des membres ensemble dès que
+ * `g > tables`.
+ */
+function conflictFloor(groups: string[], tables: number): number {
+  if (tables < 1) return 0
+  const counts = new Map<string, number>()
+  for (const g of groups) if (g !== '') counts.set(g, (counts.get(g) ?? 0) + 1)
+  let floor = 0
+  for (const g of counts.values()) {
+    const q = Math.floor(g / tables)
+    const r = g % tables
+    floor += r * ((q + 1) * q) / 2 + (tables - r) * (q * (q - 1)) / 2
+  }
+  return floor
+}
+
+/**
+ * Le mieux qu'un tirage puisse atteindre pour ces rotations : nombre minimal de
+ * conflits de groupe, et nombre minimal de re-rencontres (si les rotations
+ * distribuent plus de rencontres qu'il n'existe de paires, l'excédent est
+ * forcément constitué de doublons). Sert à savoir quand s'arrêter de chercher.
+ */
+export function planBounds(
+  participants: SolverParticipant[],
+  rotations: string[][][],
+): { minConflicts: number; minRepeats: number } {
+  const groups = participants.map((p) => p.group.trim())
+  const n = participants.length
+  let minConflicts = 0
+  let encounters = 0
+  for (const rot of rotations) {
+    minConflicts += conflictFloor(groups, rot.length)
+    for (const table of rot) encounters += (table.length * (table.length - 1)) / 2
+  }
+  return {
+    minConflicts,
+    minRepeats: Math.max(0, encounters - (n * (n - 1)) / 2),
+  }
 }
 
 /** État d'un tirage : matrice des rencontres + score courant. */
@@ -174,18 +229,27 @@ function buildRotation(board: Board, order: number[], sizes: number[], rnd: () =
   return tables
 }
 
-/** Recuit simulé : échange deux participants entre deux tables d'une rotation libre. */
+const clonePlan = (plan: number[][][]) => plan.map((rot) => rot.map((table) => [...table]))
+
+/**
+ * Recuit simulé : échange deux participants entre deux tables d'une rotation
+ * libre. Le recuit accepte des dégradations pour s'échapper des optima locaux,
+ * si bien que son état final n'est pas forcément le meilleur qu'il ait vu :
+ * on garde donc une copie du meilleur et c'est elle qu'on renvoie.
+ */
 function anneal(
   board: Board,
   free: number[][][],
   iterations: number,
   rnd: () => number,
-) {
-  if (free.length === 0) return
+  t0 = 3,
+): number[][][] {
+  if (free.length === 0) return free
   const tableCount = free[0].length
-  if (tableCount < 2) return
+  if (tableCount < 2) return free
 
-  const t0 = 3
+  let bestScore = board.score
+  let bestPlan = clonePlan(free)
   const t1 = 0.02
   for (let step = 0; step < iterations; step++) {
     const temp = t0 * Math.pow(t1 / t0, step / iterations)
@@ -212,6 +276,10 @@ function anneal(
     if (delta <= 0 || rnd() < Math.exp(-delta / temp)) {
       tables[ta][ia] = b
       tables[tb][ib] = a
+      if (board.score < bestScore) {
+        bestScore = board.score
+        bestPlan = clonePlan(free)
+      }
     } else {
       // Annulation : on remet les paires d'origine.
       for (const o of tables[ta]) if (o !== a) board.removePair(b, o)
@@ -220,9 +288,23 @@ function anneal(
       for (const o of tables[tb]) if (o !== b) board.addPair(b, o)
     }
   }
+  return bestPlan
 }
 
-function statsFrom(board: Board, sizes: number[], present: number): SolveStats {
+/** Reconstruit l'état de rencontres correspondant à un tirage. */
+function boardFor(groups: string[], locked: number[][][], plan: number[][][]): Board {
+  const board = new Board(groups)
+  for (const rot of locked) for (const table of rot) board.addTable(table)
+  for (const rot of plan) for (const table of rot) board.addTable(table)
+  return board
+}
+
+function statsFrom(
+  board: Board,
+  sizes: number[],
+  present: number,
+  bounds: { minConflicts: number; minRepeats: number },
+): SolveStats {
   let totalEncounters = 0
   let uniquePairs = 0
   let maxMeet = 0
@@ -238,6 +320,7 @@ function statsFrom(board: Board, sizes: number[], present: number): SolveStats {
     }
   }
   const possiblePairs = (present * (present - 1)) / 2
+  const repeatEncounters = totalEncounters - uniquePairs
   return {
     present,
     tableCount: sizes.length,
@@ -245,10 +328,14 @@ function statsFrom(board: Board, sizes: number[], present: number): SolveStats {
     groupConflicts: board.conflicts,
     totalEncounters,
     uniquePairs,
-    repeatEncounters: totalEncounters - uniquePairs,
+    repeatEncounters,
     uniqueRatio: totalEncounters === 0 ? 1 : uniquePairs / totalEncounters,
     coverage: possiblePairs === 0 ? 1 : uniquePairs / possiblePairs,
     maxMeet,
+    minConflicts: bounds.minConflicts,
+    minRepeats: bounds.minRepeats,
+    optimal:
+      board.conflicts <= bounds.minConflicts && repeatEncounters <= bounds.minRepeats,
   }
 }
 
@@ -270,17 +357,62 @@ export function solve(options: SolveOptions): SolveResult {
   const freeCount = Math.max(0, rotationCount - locked.length)
 
   if (n === 0) {
-    return { rotations: [], stats: statsFrom(new Board([]), [], 0) }
+    return { rotations: [], stats: statsFrom(new Board([]), [], 0, { minConflicts: 0, minRepeats: 0 }) }
   }
 
-  const restarts = options.restarts ?? 5
+  // Le meilleur tirage possible, calculé à l'avance : dès qu'on l'atteint, il
+  // est inutile de chercher plus loin — et si on ne l'atteint pas dans le temps
+  // imparti, c'est le résultat qui le dit, pas un nouveau clic au hasard.
+  let encounters = 0
+  let floors = 0
+  for (let r = 0; r < locked.length + freeCount; r++) {
+    const rotSizes = r < locked.length ? locked[r].map((t) => t.length) : sizes
+    floors += conflictFloor(groups, rotSizes.length)
+    for (const size of rotSizes) encounters += (size * (size - 1)) / 2
+  }
+  const bounds = {
+    minConflicts: floors,
+    minRepeats: Math.max(0, encounters - (n * (n - 1)) / 2),
+  }
+  const target = bounds.minConflicts * CONFLICT_COST + bounds.minRepeats
+
+  const restarts = options.restarts ?? 80
+  const deadline = performance.now() + (options.timeBudgetMs ?? 2000)
   // Effort proportionnel à la taille du problème, borné pour rester instantané.
   const iterations = Math.min(1_500_000, Math.max(30_000, n * Math.max(1, freeCount) * 1500))
 
   let bestRotations: number[][][] | null = null
   let bestBoard: Board | null = null
 
-  for (let run = 0; run < restarts; run++) {
+  // Point de départ : le tirage déjà affiché, s'il correspond toujours aux
+  // participants présents et au format de tables demandé.
+  const currentFree = (options.current ?? []).slice(locked.length, rotationCount)
+  if (currentFree.length === freeCount && freeCount > 0) {
+    const mapped = currentFree.map((rot) =>
+      rot.map((table) =>
+        table.map((id) => index.get(id)).filter((i): i is number => i !== undefined),
+      ),
+    )
+    const usable = mapped.every((rot) => {
+      if (rot.map((t) => t.length).join(',') !== sizes.join(',')) return false
+      const flat = rot.flat()
+      return flat.length === n && new Set(flat).size === n
+    })
+    if (usable) {
+      // Polissage à basse température : on affine le tirage existant au lieu de
+      // le casser, et le meilleur état visité inclut le point de départ — un
+      // clic de plus ne peut donc jamais dégrader le plan affiché.
+      const board = boardFor(groups, locked, mapped)
+      const polished = anneal(board, mapped, iterations, mulberry32((options.seed ?? 1) ^ 0x2545f491), 0.8)
+      bestRotations = polished
+      bestBoard = boardFor(groups, locked, polished)
+    }
+  }
+
+  // Déjà au minimum atteignable : rien à chercher de plus.
+  const alreadyOptimal = bestBoard !== null && bestBoard.score <= target
+
+  for (let run = 0; !alreadyOptimal && run < restarts; run++) {
     const rnd = mulberry32((options.seed ?? 0x9e3779b9) + run * 0x85ebca6b)
     const board = new Board(groups)
     for (const rot of locked) for (const table of rot) board.addTable(table)
@@ -293,14 +425,15 @@ export function solve(options: SolveOptions): SolveResult {
       free.push(buildRotation(board, order, sizes, rnd))
     }
 
-    anneal(board, free, iterations, rnd)
+    const plan = anneal(board, free, iterations, rnd)
+    const scored = boardFor(groups, locked, plan)
 
-    if (bestBoard === null || board.score < bestBoard.score) {
-      bestBoard = board
-      bestRotations = free
+    if (bestBoard === null || scored.score < bestBoard.score) {
+      bestBoard = scored
+      bestRotations = plan
     }
-    // Tirage parfait : inutile de continuer.
-    if (bestBoard.score === 0) break
+    // Optimum prouvé, ou temps imparti écoulé.
+    if (bestBoard.score <= target || performance.now() >= deadline) break
   }
 
   const rotations: string[][][] = [
@@ -308,7 +441,7 @@ export function solve(options: SolveOptions): SolveResult {
     ...(bestRotations ?? []).map((rot) => rot.map((t) => t.map((i) => participants[i].id))),
   ]
 
-  return { rotations, stats: statsFrom(bestBoard!, sizes, n) }
+  return { rotations, stats: statsFrom(bestBoard!, sizes, n, bounds) }
 }
 
 /** Ordre de placement : groupes les plus gros d'abord, aléatoire à l'intérieur. */
@@ -341,5 +474,10 @@ export function statsFor(
       board.addTable(idx)
     }
   }
-  return statsFrom(board, tableSizes(participants.length, perTable), participants.length)
+  return statsFrom(
+    board,
+    tableSizes(participants.length, perTable),
+    participants.length,
+    planBounds(participants, rotations),
+  )
 }
