@@ -3,6 +3,7 @@ import type { Participant } from '../types'
 import type { SolveStats } from '../solver'
 import { groupColor } from '../colors'
 import TableCard from './TableCard'
+import PersonList from './PersonList'
 
 interface Props {
   rotations: string[][][]
@@ -28,6 +29,7 @@ export default function Rotations({
   onPrint,
 }: Props) {
   const [focus, setFocus] = useState<string | null>(null)
+  const [view, setView] = useState<'tables' | 'people'>('tables')
 
   const focusPerson = focus ? (people.get(focus) ?? null) : null
   const trail = focusPerson
@@ -65,9 +67,29 @@ export default function Rotations({
     <section className="card">
       <div className="card-head">
         <h2 className="card-title">Plan des rotations</h2>
-        <button className="btn btn-ghost btn-sm" onClick={onPrint}>
-          Imprimer
-        </button>
+        <div className="head-right">
+          <div className="view-switch" role="tablist" aria-label="Affichage du plan">
+            <button
+              role="tab"
+              aria-selected={view === 'tables'}
+              className={view === 'tables' ? 'on' : ''}
+              onClick={() => setView('tables')}
+            >
+              Par table
+            </button>
+            <button
+              role="tab"
+              aria-selected={view === 'people'}
+              className={view === 'people' ? 'on' : ''}
+              onClick={() => setView('people')}
+            >
+              Par personne
+            </button>
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={onPrint}>
+            Imprimer
+          </button>
+        </div>
       </div>
 
       {stats && (
@@ -103,7 +125,7 @@ export default function Rotations({
         </div>
       )}
 
-      {focusPerson && (
+      {view === 'tables' && focusPerson && (
         <div className="focus-bar">
           <span className="dot" style={{ background: groupColor(focusPerson.group) }} />
           <b>{focusPerson.name}</b>
@@ -143,7 +165,9 @@ export default function Rotations({
         </div>
       ))}
 
-      {legend.size > 0 && (
+      {view === 'people' && <PersonList rotations={rotations} people={people} />}
+
+      {view === 'tables' && legend.size > 0 && (
         <div className="legend plan-legend">
           {[...legend].map(([g, color]) => (
             <span className="chip" key={g}>
@@ -154,13 +178,13 @@ export default function Rotations({
         </div>
       )}
 
-      {!focusPerson && (
+      {view === 'tables' && !focusPerson && (
         <p className="plan-hint">
           Clique sur un nom pour suivre son parcours d'une rotation à l'autre.
         </p>
       )}
 
-      {rotations.map((rot, r) => {
+      {view === 'tables' && rotations.map((rot, r) => {
         const locked = r < lockedCount
         return (
           <div className="rotation" key={r}>
