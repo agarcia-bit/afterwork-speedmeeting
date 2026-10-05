@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { Participant } from '../types'
-import { parseList, type Layout, type Separator } from '../import'
+import { fromCells, parseList, type Layout, type Separator } from '../import'
+import { buildXlsx, readXlsx } from '../xlsx'
+import { saveFile } from '../download'
 import { groupColor } from '../colors'
 
 interface Props {
@@ -26,6 +28,14 @@ const LAYOUT_LABELS: { value: LayoutChoice; label: string }[] = [
   { value: 'name', label: 'Nom seul' },
   { value: 'name-group', label: 'Nom + groupe' },
   { value: 'group-name', label: 'Groupe + nom' },
+]
+
+/** Contenu du modèle : l'en-tête attendu, suivi de trois exemples à remplacer. */
+const TEMPLATE_ROWS = [
+  ['Nom', 'Groupe'],
+  ['Marie Delcourt', 'PAF'],
+  ['Paul Vasseur', 'ARCOPRO'],
+  ['Sophie Leroy', ''],
 ]
 
 const PREVIEW_ROWS = 8
@@ -60,55 +70,154 @@ function Choice<T extends string>({
 }
 
 export default function ImportModal({ participants, onImport, onClose }: Props) {
+  const [file, setFile] = useState<{ name: string; cells: string[][] } | null>(null)
   const [text, setText] = useState('')
   const [sep, setSep] = useState<SepChoice>('auto')
   const [layout, setLayout] = useState<LayoutChoice>('auto')
   const [header, setHeader] = useState<HeaderChoice>('auto')
   const [withDuplicates, setWithDuplicates] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [dragging, setDragging] = useState(false)
+  const picker = useRef<HTMLInputElement>(null)
 
-  const result = useMemo(
-    () =>
-      parseList(
-        text,
-        participants.map((p) => p.name),
-        {
+  const names = useMemo(() => participants.map((p) => p.name), [participants])
+
+  const result = useMemo(() => {
+    const options = {
+      layout: layout === 'auto' ? undefined : layout,
+      header: header === 'auto' ? undefined : header === 'yes',
+    }
+    return file
+      ? fromCells(file.cells, names, options)
+      : parseList(text, names, {
+          ...options,
           separator: sep === 'auto' ? undefined : sep === 'none' ? null : sep,
-          layout: layout === 'auto' ? undefined : layout,
-          header: header === 'auto' ? undefined : header === 'yes',
-        },
-      ),
-    [text, participants, sep, layout, header],
-  )
+        })
+  }, [file, text, names, sep, layout, header])
 
+  const hasInput = file !== null || text.trim() !== ''
   const kept = withDuplicates ? result.rows : result.rows.filter((r) => !r.duplicate)
+
+  async function takeFile(f: File) {
+    setError(null)
+    const name = f.name.toLowerCase()
+    try {
+      if (name.endsWith('.xlsx')) {
+        const cells = readXlsx(await f.arrayBuffer())
+        if (cells.length === 0) {
+          setError('Ce classeur ne contient aucune ligne.')
+          return
+        }
+        setText('')
+        setFile({ name: f.name, cells })
+      } else if (name.endsWith('.xls')) {
+        setError(
+          "L'ancien format .xls ne peut pas être lu ici. Dans Excel, « Enregistrer sous » puis choisis .xlsx.",
+        )
+      } else {
+        setFile(null)
+        setText(await f.text())
+      }
+    } catch {
+      setError("Fichier illisible. Vérifie qu'il s'agit bien d'un .xlsx, ou colle la liste ci-dessous.")
+    }
+  }
+
+  async function downloadTemplate() {
+    setError(null)
+    const outcome = await saveFile('participants-modele.xlsx', buildXlsx(TEMPLATE_ROWS))
+    if (outcome === 'declined') setError('Téléchargement refusé.')
+    else if (outcome === 'unavailable')
+      setError("Téléchargement impossible depuis cette page. Utilise plutôt le collage ci-dessous.")
+  }
 
   return (
     <div className="modal" onClick={onClose}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="card-head">
-          <h2 className="card-title">Importer une liste</h2>
+          <h2 className="card-title">Importer des participants</h2>
           <button className="btn btn-icon" onClick={onClose} aria-label="Fermer">
             ×
           </button>
         </div>
 
         <p className="card-hint">
-          Colle ta liste depuis un tableur, un mail ou un document — une personne par ligne.
-          Vérifie l'aperçu avant d'importer : rien n'est ajouté tant que tu ne valides pas.
+          Remplis le modèle Excel — une colonne <b>Nom</b>, une colonne <b>Groupe</b> — puis
+          dépose-le ici. Rien n'est ajouté tant que tu n'as pas validé l'aperçu.
         </p>
 
-        <textarea
-          className="modal-text import-text"
-          autoFocus
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={'Marie Delcourt ; PAF\nPaul Vasseur ; ARCOPRO\nSophie Leroy'}
-        />
+        <div className="template-row">
+          <button className="btn btn-sm" onClick={downloadTemplate}>
+            Télécharger le modèle Excel
+          </button>
+        </div>
 
-        {text.trim() !== '' && (
+        {file ? (
+          <div className="file-chip">
+            <span className="file-name">{file.name}</span>
+            <span className="file-meta">
+              {file.cells.length} ligne{file.cells.length > 1 ? 's' : ''}
+            </span>
+            <button
+              className="btn btn-icon"
+              onClick={() => setFile(null)}
+              aria-label="Retirer le fichier"
+            >
+              ×
+            </button>
+          </div>
+        ) : (
+          <div
+            className={`dropzone${dragging ? ' over' : ''}`}
+            onDragOver={(e) => {
+              e.preventDefault()
+              setDragging(true)
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault()
+              setDragging(false)
+              const f = e.dataTransfer.files[0]
+              if (f) void takeFile(f)
+            }}
+            onClick={() => picker.current?.click()}
+          >
+            <b>Dépose ton fichier ici</b>
+            <span>ou clique pour le choisir — .xlsx ou .csv</span>
+            <input
+              ref={picker}
+              type="file"
+              accept=".xlsx,.csv,.txt"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) void takeFile(f)
+                e.target.value = ''
+              }}
+            />
+          </div>
+        )}
+
+        {error && <div className="banner bad">{error}</div>}
+
+        {!file && (
+          <>
+            <p className="or-line">ou colle ta liste</p>
+            <textarea
+              className="modal-text import-text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={'Marie Delcourt ; PAF\nPaul Vasseur ; ARCOPRO\nSophie Leroy'}
+            />
+          </>
+        )}
+
+        {hasInput && (
           <>
             <div className="choices">
-              <Choice label="Séparateur" options={SEP_LABELS} value={sep} onChange={setSep} />
+              {!file && (
+                <Choice label="Séparateur" options={SEP_LABELS} value={sep} onChange={setSep} />
+              )}
               <Choice label="Colonnes" options={LAYOUT_LABELS} value={layout} onChange={setLayout} />
               <Choice
                 label="Première ligne"
@@ -124,7 +233,7 @@ export default function ImportModal({ participants, onImport, onClose }: Props) 
 
             {result.rows.length === 0 ? (
               <div className="banner bad">
-                Aucune personne reconnue. Vérifie le séparateur ci-dessus.
+                Aucune personne reconnue. Vérifie les réglages ci-dessus.
               </div>
             ) : (
               <>
