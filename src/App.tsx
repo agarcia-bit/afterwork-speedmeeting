@@ -220,6 +220,7 @@ export default function App() {
 
       {screen && (
         <ScreenMode
+          title={state.title}
           rotations={state.rotations}
           people={people}
           minutes={state.rotationMinutes}

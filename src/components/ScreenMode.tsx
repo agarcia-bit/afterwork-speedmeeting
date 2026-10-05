@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { Participant } from '../types'
 
 interface Props {
+  title: string
   rotations: string[][][]
   people: Map<string, Participant>
   minutes: number
@@ -40,7 +41,15 @@ function beep() {
   }
 }
 
-export default function ScreenMode({ rotations, people, minutes, index, onIndex, onClose }: Props) {
+export default function ScreenMode({
+  title,
+  rotations,
+  people,
+  minutes,
+  index,
+  onIndex,
+  onClose,
+}: Props) {
   const total = minutes * 60
   const [remaining, setRemaining] = useState(total)
   const [running, setRunning] = useState(false)
@@ -99,9 +108,11 @@ export default function ScreenMode({ rotations, people, minutes, index, onIndex,
     if (!el || tables.length === 0) return
 
     const fit = () => {
+      // On ne mesure que les listes : la grille partage déjà sa hauteur entre
+      // les rangées, et l'animation d'entrée décale les cartes, ce qui gonfle
+      // artificiellement la zone de défilement de la grille.
       const clipped = () =>
-        Array.from(el.querySelectorAll('ul')).some((u) => u.scrollHeight > u.clientHeight + 1) ||
-        el.scrollHeight > el.clientHeight + 1
+        Array.from(el.querySelectorAll('ul')).some((u) => u.scrollHeight > u.clientHeight + 1)
 
       const tryColumns = (columns: number) => {
         el.style.setProperty('--cols', String(columns))
@@ -161,11 +172,19 @@ export default function ScreenMode({ rotations, people, minutes, index, onIndex,
   const abs = Math.abs(remaining)
   const clock = `${over ? '+' : ''}${Math.floor(abs / 60)}:${String(abs % 60).padStart(2, '0')}`
 
+  // Jauge de temps restant : lisible du fond de la salle, sans lire l'heure.
+  const elapsed = total > 0 ? Math.min(1, Math.max(0, 1 - remaining / total)) : 1
+
   return (
     <div className="screen">
+      <div
+        className={`screen-progress${over ? ' over' : ''}`}
+        style={{ transform: `scaleX(${elapsed})` }}
+      />
+
       <header className="screen-head">
         <div className="screen-title">
-          <span className="screen-kicker">Afterwork Interasso</span>
+          <span className="screen-kicker">{title}</span>
           <h2>
             Rotation <b>{index + 1}</b>
             <span className="screen-of">sur {rotations.length}</span>
@@ -200,9 +219,13 @@ export default function ScreenMode({ rotations, people, minutes, index, onIndex,
         </div>
       </header>
 
-      <div className="screen-grid" ref={grid}>
-        {tables.map(({ number, seats }) => (
-          <section className="screen-table" key={number}>
+      <div className="screen-grid" ref={grid} key={index}>
+        {tables.map(({ number, seats }, i) => (
+          <section
+            className="screen-table"
+            key={number}
+            style={{ ['--i' as string]: i }}
+          >
             <h3>
               <span className="screen-table-num">{number}</span>
               Table
@@ -215,6 +238,14 @@ export default function ScreenMode({ rotations, people, minutes, index, onIndex,
           </section>
         ))}
       </div>
+
+      <footer className="screen-sign">
+        <span>{title}</span>
+        <span className="screen-sign-dot" />
+        <span>
+          {tables.length} table{tables.length > 1 ? 's' : ''} · {minutes} min par rotation
+        </span>
+      </footer>
     </div>
   )
 }

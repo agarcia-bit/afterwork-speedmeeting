@@ -468,8 +468,8 @@ button.seat:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
 
 /* ---------- Mode écran ---------- */
 /* Projeté en salle : lisible de loin, sans rien d'interne — ni association,
-   ni signalement de regroupement. Les tables sont paginées pour que les noms
-   restent grands quelle que soit la taille de la soirée. */
+   ni signalement de regroupement. Toutes les tables tiennent sur un écran ;
+   la taille des noms est ajustée au rendu par le composant. */
 
 .screen {
   position: fixed;
@@ -477,52 +477,86 @@ button.seat:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
   z-index: 50;
   display: flex;
   flex-direction: column;
-  gap: clamp(16px, 2.2vh, 34px);
-  padding: clamp(18px, 3vh, 44px) clamp(20px, 3vw, 56px);
+  gap: clamp(14px, 2vh, 30px);
+  padding: clamp(20px, 3.2vh, 46px) clamp(20px, 3vw, 56px) clamp(14px, 2vh, 26px);
   background:
-    radial-gradient(1400px 700px at 50% -20%, rgba(232, 134, 42, 0.18), transparent 65%),
-    var(--bg);
+    radial-gradient(1100px 520px at 12% -12%, rgba(232, 134, 42, 0.22), transparent 62%),
+    radial-gradient(900px 600px at 105% 110%, rgba(196, 92, 38, 0.14), transparent 60%),
+    radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.45) 100%),
+    #120e0b;
   overflow: hidden;
 }
 
-.screen-head { display: flex; align-items: center; gap: clamp(16px, 3vw, 48px); flex-wrap: wrap; }
+/* Jauge du temps écoulé, en haut de l'écran. */
+.screen-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  transform-origin: left center;
+  background: linear-gradient(90deg, #f0a24f, var(--accent) 60%, #d0611c);
+  box-shadow: 0 0 18px rgba(232, 134, 42, 0.55);
+  transition: transform 1s linear;
+}
+.screen-progress.over { background: var(--danger); box-shadow: 0 0 18px rgba(228, 87, 46, 0.6); }
+
+.screen-head { display: flex; align-items: flex-end; gap: clamp(16px, 3vw, 48px); flex-wrap: wrap; }
 
 .screen-kicker {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-family: var(--font-title);
-  font-size: clamp(10px, 1vw, 14px);
-  letter-spacing: 0.3em;
+  font-size: clamp(11px, 1vw, 15px);
+  font-weight: 500;
+  letter-spacing: 0.32em;
   text-transform: uppercase;
   color: var(--accent);
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+}
+.screen-kicker::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  background: var(--accent);
+  transform: rotate(45deg);
 }
 .screen-title h2 {
   margin: 0;
   font-family: var(--font-title);
-  font-size: clamp(26px, 3.6vw, 56px);
-  font-weight: 500;
-  letter-spacing: 0.04em;
+  font-size: clamp(30px, 4.2vw, 68px);
+  font-weight: 400;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  line-height: 1;
+  line-height: 0.95;
 }
-.screen-title h2 b { font-weight: 700; }
+.screen-title h2 b {
+  font-weight: 700;
+  color: var(--accent);
+}
 .screen-of {
-  font-size: 0.45em;
-  letter-spacing: 0.16em;
+  font-size: 0.38em;
+  font-weight: 500;
+  letter-spacing: 0.2em;
   color: var(--muted);
-  margin-left: 0.6em;
+  margin-left: 0.7em;
+  vertical-align: 0.35em;
 }
 
 .timer {
   margin-left: auto;
   font-family: var(--font-title);
-  font-size: clamp(44px, 7.5vw, 104px);
+  font-size: clamp(48px, 8vw, 116px);
   font-weight: 600;
-  line-height: 0.9;
+  line-height: 0.82;
+  letter-spacing: 0.01em;
   font-variant-numeric: tabular-nums;
+  color: #fbf4ea;
+  text-shadow: 0 0 40px rgba(232, 134, 42, 0.18);
 }
-.timer.low { color: var(--accent); }
-.timer.over { color: var(--danger); }
+.timer.low { color: var(--accent); text-shadow: 0 0 40px rgba(232, 134, 42, 0.4); }
+.timer.over { color: var(--danger); text-shadow: 0 0 40px rgba(228, 87, 46, 0.4); }
 
 /* Les commandes servent à l'animateur, pas au public : discrètes au repos. */
 .screen-controls {
@@ -530,7 +564,8 @@ button.seat:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  opacity: 0.4;
+  align-self: center;
+  opacity: 0.32;
   transition: opacity 0.25s;
 }
 .screen:hover .screen-controls,
@@ -540,46 +575,67 @@ button.seat:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
   flex: 1;
   display: grid;
   grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
-  /* Les rangées se partagent la hauteur disponible : rien ne déborde sous le
-     pied de page, quel que soit le nombre de convives par table. */
+  /* Les rangées se partagent la hauteur disponible : rien ne déborde. */
   grid-auto-rows: minmax(0, 1fr);
-  gap: clamp(12px, 1.6vw, 26px);
+  gap: clamp(10px, 1.4vw, 24px);
   min-height: 0;
 }
 
 .screen-table {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: clamp(12px, 1.5vw, 26px) clamp(14px, 1.6vw, 30px) clamp(14px, 1.6vw, 28px);
-  border: 1px solid var(--line-soft);
-  border-radius: 16px;
-  background: linear-gradient(180deg, rgba(43, 36, 28, 0.85), rgba(28, 23, 18, 0.85));
+  padding: clamp(12px, 1.3vw, 26px) clamp(14px, 1.5vw, 30px);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 236, 214, 0.07);
+  background:
+    linear-gradient(180deg, rgba(255, 236, 214, 0.045), transparent 38%),
+    linear-gradient(180deg, #241d17, #1a1511);
+  box-shadow:
+    0 1px 0 rgba(255, 236, 214, 0.06) inset,
+    0 18px 40px -22px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+  animation: screen-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
 }
+/* Filet d'accent en tête de carte. */
+.screen-table::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), rgba(232, 134, 42, 0.15) 70%, transparent);
+}
+
 .screen-table h3 {
   display: flex;
   align-items: center;
-  gap: 0.5em;
-  margin: 0 0 clamp(10px, 1.2vh, 20px);
-  padding-bottom: clamp(8px, 1vh, 16px);
-  border-bottom: 1px solid var(--line-soft);
+  gap: 0.6em;
+  margin: 0 0 clamp(8px, 1.1vh, 18px);
+  padding-bottom: clamp(8px, 1vh, 14px);
+  border-bottom: 1px solid rgba(255, 236, 214, 0.08);
   font-family: var(--font-title);
-  font-size: clamp(13px, 1.3vw, 22px);
+  /* L'en-tête suit la taille des noms pour ne pas écraser une grille dense. */
+  font-size: max(11px, calc(var(--name-size, 22px) * 0.62));
   font-weight: 500;
-  letter-spacing: 0.26em;
+  letter-spacing: 0.3em;
   text-transform: uppercase;
   color: var(--muted);
 }
 .screen-table-num {
   display: grid;
   place-items: center;
-  width: 1.9em;
-  height: 1.9em;
+  width: 2em;
+  height: 2em;
   flex: none;
   border-radius: 50%;
-  background: var(--accent);
+  background: radial-gradient(circle at 35% 30%, #f5ad5c, var(--accent) 55%, #c9631d);
+  box-shadow: 0 0 0 0.28em rgba(232, 134, 42, 0.14), 0 4px 14px rgba(232, 134, 42, 0.35);
   color: #1a1208;
-  font-size: 1.15em;
+  font-size: 1.2em;
   font-weight: 700;
   letter-spacing: 0;
 }
@@ -596,19 +652,42 @@ button.seat:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
   overflow: hidden;
 }
 .screen-table li {
-  /* Taille ajustée au rendu par le mode écran, pour que rien ne soit coupé. */
   font-size: var(--name-size, 22px);
   line-height: 1.24;
   font-weight: 500;
-  letter-spacing: 0.005em;
+  color: #f8f1e7;
   /* Un nom long passe à la ligne plutôt que d'être coupé. */
   overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
-/* Les cartes s'adaptent au nombre de tables : l'en-tête suit la taille des
-   noms plutôt qu'une taille d'écran, pour ne pas écraser une grille dense. */
-.screen-table h3 { font-size: max(11px, calc(var(--name-size, 22px) * 0.62)); }
-.screen-table { padding: clamp(10px, 1.2vw, 24px) clamp(12px, 1.4vw, 28px); }
+.screen-sign {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-family: var(--font-title);
+  font-size: clamp(10px, 0.85vw, 13px);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(163, 148, 131, 0.7);
+}
+.screen-sign-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+@keyframes screen-rise {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen-table { animation: none; }
+  .screen-progress { transition: none; }
+}
 
 @media print {
   body { background: #fff; color: #000; }
