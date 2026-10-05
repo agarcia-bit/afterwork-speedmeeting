@@ -4,15 +4,18 @@ import type { SolveStats } from '../solver'
 import { groupColor } from '../colors'
 import TableCard from './TableCard'
 import PersonList from './PersonList'
+import { personListingPdf, tableListingPdf } from '../listing'
+import { saveFile } from '../download'
 
 interface Props {
+  title: string
+  minutes: number
   rotations: string[][][]
   people: Map<string, Participant>
   lockedCount: number
   stats: SolveStats | null
   warnings: string[]
   onLock: (count: number) => void
-  onPrint: () => void
 }
 
 function pct(x: number) {
@@ -20,16 +23,33 @@ function pct(x: number) {
 }
 
 export default function Rotations({
+  title,
+  minutes,
   rotations,
   people,
   lockedCount,
   stats,
   warnings,
   onLock,
-  onPrint,
 }: Props) {
   const [focus, setFocus] = useState<string | null>(null)
   const [view, setView] = useState<'tables' | 'people'>('tables')
+  const [exporting, setExporting] = useState(false)
+
+  // Un vrai document mis en page, selon la vue affichée — pas une impression
+  // de la page web.
+  async function exportPdf() {
+    setExporting(true)
+    try {
+      if (view === 'people') {
+        await saveFile('parcours-par-personne.pdf', personListingPdf(title, rotations, people))
+      } else {
+        await saveFile('plan-des-tables.pdf', tableListingPdf(title, rotations, people, minutes))
+      }
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const focusPerson = focus ? (people.get(focus) ?? null) : null
   const trail = focusPerson
@@ -86,8 +106,8 @@ export default function Rotations({
               Par personne
             </button>
           </div>
-          <button className="btn btn-ghost btn-sm" onClick={onPrint}>
-            Imprimer
+          <button className="btn btn-sm" onClick={exportPdf} disabled={exporting}>
+            {exporting ? 'Préparation…' : 'Listing PDF'}
           </button>
         </div>
       </div>

@@ -207,13 +207,14 @@ export default function App() {
         </div>
         <div className="col">
           <RotationsView
+            title={state.title}
+            minutes={state.rotationMinutes}
             rotations={state.rotations}
             people={people}
             lockedCount={state.lockedCount}
             stats={stats}
             warnings={warnings}
             onLock={(count) => setState((s) => ({ ...s, lockedCount: count }))}
-            onPrint={() => window.print()}
           />
         </div>
       </div>

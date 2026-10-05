@@ -3,52 +3,16 @@ import type { Participant } from '../types'
 import { groupColor } from '../colors'
 import { buildXlsx } from '../xlsx'
 import { saveFile } from '../download'
+import { journeysByGroup, NO_GROUP } from '../journeys'
 
 interface Props {
   rotations: string[][][]
   people: Map<string, Participant>
 }
 
-const NO_GROUP = 'Sans association'
-
 /** Parcours de chacun : sa table à chaque rotation, regroupé par association. */
 export default function PersonList({ rotations, people }: Props) {
-  const groups = useMemo(() => {
-    // Table occupée par chaque personne, rotation par rotation.
-    const seats = new Map<string, (number | null)[]>()
-    rotations.forEach((rot, r) =>
-      rot.forEach((table, t) =>
-        table.forEach((id) => {
-          const row = seats.get(id) ?? rotations.map(() => null)
-          row[r] = t + 1
-          seats.set(id, row)
-        }),
-      ),
-    )
-
-    // Toute personne placée dans le plan, plus les présents pas encore placés.
-    const ids = new Set(seats.keys())
-    for (const p of people.values()) if (p.present) ids.add(p.id)
-
-    const byGroup = new Map<string, { person: Participant; tables: (number | null)[] }[]>()
-    for (const id of ids) {
-      const person = people.get(id)
-      if (!person) continue
-      const key = person.group.trim() || NO_GROUP
-      const list = byGroup.get(key) ?? []
-      list.push({ person, tables: seats.get(id) ?? rotations.map(() => null) })
-      byGroup.set(key, list)
-    }
-
-    return [...byGroup.entries()]
-      .sort(([a], [b]) =>
-        a === NO_GROUP ? 1 : b === NO_GROUP ? -1 : a.localeCompare(b, 'fr'),
-      )
-      .map(([name, members]) => ({
-        name,
-        members: members.sort((a, b) => a.person.name.localeCompare(b.person.name, 'fr')),
-      }))
-  }, [rotations, people])
+  const groups = useMemo(() => journeysByGroup(rotations, people), [rotations, people])
 
   async function exportXlsx() {
     const header = ['Association', 'Nom', ...rotations.map((_, r) => `Rotation ${r + 1}`)]
