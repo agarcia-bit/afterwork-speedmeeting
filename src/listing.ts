@@ -270,3 +270,97 @@ export function tableListingPdf(
   footers(p)
   return doc.output('blob')
 }
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Annuaire de tous les présents de la soirée — pas seulement les personnes
+ * rencontrées — pour que chacun reparte avec la liste complète. Classé par
+ * groupe, noms sur trois colonnes lues de haut en bas. A4 portrait.
+ */
+export function attendeeListPdf(title: string, people: Map<string, Participant>): Blob {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true })
+  const p: Page = { doc, W: 210, H: 297, M: 16, title, label: 'Participants de la soirée' }
+  // Sans tirage, le regroupement ne retient que les présents.
+  const groups = journeysByGroup([], people)
+  const count = groups.reduce((n, g) => n + g.members.length, 0)
+
+  const cols = 3
+  const colGap = 6
+  const colW = (p.W - 2 * p.M - colGap * (cols - 1)) / cols
+  const rowH = 5.8
+  const bottom = p.H - 18
+
+  let y = titleBlock(
+    p,
+    header(p),
+    'Participants de la soirée',
+    '',
+    `${count} participant${count > 1 ? 's' : ''} · ${groups.length} groupe${groups.length > 1 ? 's' : ''}`,
+  )
+
+  const groupHead = (yy: number, name: string, n: number, cont: boolean) => {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.setTextColor(INK)
+    doc.text(name.toUpperCase(), p.M, yy)
+    if (cont) {
+      const w = doc.getTextWidth(name.toUpperCase())
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8.5)
+      doc.setTextColor(GREY)
+      doc.text('(suite)', p.M + w + 2.5, yy)
+    }
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8.5)
+    doc.setTextColor(GREY)
+    doc.text(`${n} personne${n > 1 ? 's' : ''}`, p.W - p.M, yy, { align: 'right' })
+    doc.setDrawColor(ORANGE)
+    doc.setLineWidth(0.6)
+    doc.line(p.M, yy + 2.2, p.M + 14, yy + 2.2)
+    doc.setDrawColor(RULE)
+    doc.setLineWidth(0.25)
+    doc.line(p.M + 14, yy + 2.2, p.W - p.M, yy + 2.2)
+    return yy + 8
+  }
+
+  for (const group of groups) {
+    const names = group.members.map((m) => m.person.name)
+    // Un groupe qui tient sur une page n'est jamais coupé : s'il ne tient plus
+    // dans la place restante, il passe en entier à la page suivante. Seuls les
+    // groupes plus longs qu'une page continuent d'une page à l'autre.
+    const needed = 11 + rowH * Math.ceil(names.length / cols)
+    const freshPage = bottom - 31
+    if (y + needed > bottom && (needed <= freshPage || y + 11 + rowH * 2 > bottom)) {
+      doc.addPage()
+      y = header(p)
+    }
+    y = groupHead(y + 3, group.name, names.length, false)
+
+    let rest = names
+    while (rest.length > 0) {
+      const rowsFit = Math.max(1, Math.floor((bottom - y) / rowH))
+      const chunk = rest.slice(0, rowsFit * cols)
+      rest = rest.slice(chunk.length)
+      // Lecture en colonnes : l'ordre alphabétique descend, puis passe à droite.
+      const rows = Math.ceil(chunk.length / cols)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9.5)
+      doc.setTextColor(INK)
+      chunk.forEach((name, i) => {
+        const c = Math.floor(i / rows)
+        const r = i % rows
+        doc.text(fit(doc, name, colW - 2), p.M + c * (colW + colGap), y + r * rowH + 4)
+      })
+      y += rows * rowH
+      if (rest.length > 0) {
+        doc.addPage()
+        y = groupHead(header(p) + 3, group.name, names.length, true)
+      }
+    }
+    y += 4
+  }
+
+  footers(p)
+  return doc.output('blob')
+}

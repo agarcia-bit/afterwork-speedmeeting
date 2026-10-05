@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { EventState } from '../types'
 import { allSheetsPdf, sheetFilename, sheetPdf } from '../sheets'
+import { attendeeListPdf } from '../listing'
 import { saveFile } from '../download'
 
 interface Props {
@@ -52,6 +53,23 @@ export default function DataModal({ state, onImport, onClose }: Props) {
     }
   }
 
+  async function saveAttendees() {
+    setWorking(true)
+    try {
+      const people = new Map(state.participants.map((p) => [p.id, p]))
+      const outcome = await saveFile('participants-de-la-soiree.pdf', attendeeListPdf(state.title, people))
+      setProgress(
+        outcome === 'saved'
+          ? `Liste des présents enregistrée — ${attendees.length} personnes.`
+          : outcome === 'declined'
+            ? 'Enregistrement refusé.'
+            : 'Enregistrement impossible depuis cette page.',
+      )
+    } finally {
+      setWorking(false)
+    }
+  }
+
   async function saveEach() {
     setWorking(true)
     try {
@@ -94,7 +112,7 @@ export default function DataModal({ state, onImport, onClose }: Props) {
 
         <div className="tabs">
           <button className={`btn btn-sm${tab === 'sheets' ? ' btn-primary' : ' btn-ghost'}`} onClick={() => setTab('sheets')}>
-            Fiches PDF
+            Documents PDF
           </button>
           <button className={`btn btn-sm${tab === 'json' ? ' btn-primary' : ' btn-ghost'}`} onClick={() => setTab('json')}>
             Sauvegarde JSON
@@ -109,6 +127,22 @@ export default function DataModal({ state, onImport, onClose }: Props) {
 
         {tab === 'sheets' ? (
           <div className="sheets-pane">
+            <h3 className="pane-title">Liste des présents</h3>
+            <p className="card-hint">
+              Tous les participants de la soirée, classés par groupe — pas seulement ceux
+              rencontrés. Un seul PDF à envoyer à tout le monde.
+            </p>
+            {attendees.length === 0 ? (
+              <p className="empty">Aucun participant présent.</p>
+            ) : (
+              <div className="sheet-actions">
+                <button className="btn btn-primary" onClick={saveAttendees} disabled={working}>
+                  Liste des présents — {attendees.length} personnes
+                </button>
+              </div>
+            )}
+
+            <h3 className="pane-title">Fiches individuelles</h3>
             <p className="card-hint">
               Une page A5 par personne : son nom, son groupe, sa table à chaque rotation et les
               personnes qu'elle y retrouvera. Prête à joindre à un mail.
@@ -129,9 +163,9 @@ export default function DataModal({ state, onImport, onClose }: Props) {
                   Les fichiers séparés sont nommés « fiche-prenom-nom.pdf ». Selon le navigateur,
                   chaque enregistrement demande une confirmation.
                 </p>
-                {progress && <div className="banner warn">{progress}</div>}
               </>
             )}
+            {progress && <div className="banner warn">{progress}</div>}
           </div>
         ) : tab === 'import' ? (
           <>
