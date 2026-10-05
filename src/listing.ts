@@ -364,3 +364,162 @@ export function attendeeListPdf(title: string, people: Map<string, Participant>)
   footers(p)
   return doc.output('blob')
 }
+
+// ---------------------------------------------------------------------------
+
+export interface DirectoryEntry {
+  first_name: string
+  last_name: string
+  activity: string
+  grp: string
+  email: string
+  phone: string
+  share_contact: boolean
+}
+
+/**
+ * Annuaire des participants ayant rempli le formulaire, envoyé à chacun
+ * d'eux. N'y figure que ce que chaque personne a accepté de partager : nom,
+ * activité et groupe toujours, coordonnées seulement sur consentement. A4.
+ */
+export function directoryPdf(
+  title: string,
+  eventDate: string,
+  entries: DirectoryEntry[],
+): Blob {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true })
+  const p: Page = { doc, W: 210, H: 297, M: 16, title, label: 'Annuaire des participants' }
+  const bottom = p.H - 18
+  const cols = 2
+  const colGap = 8
+  const colW = (p.W - 2 * p.M - colGap) / cols
+
+  const [y0, m0, d0] = eventDate.slice(0, 10).split('-').map(Number)
+  const date = new Date(y0, m0 - 1, d0).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+
+  // Regroupement par groupe, « Sans groupe » en dernier, puis par nom.
+  const byGroup = new Map<string, DirectoryEntry[]>()
+  for (const e of entries) {
+    const key = e.grp.trim() || 'Sans groupe'
+    byGroup.set(key, [...(byGroup.get(key) ?? []), e])
+  }
+  const groups = [...byGroup.entries()]
+    .sort(([a], [b]) =>
+      a === 'Sans groupe' ? 1 : b === 'Sans groupe' ? -1 : a.localeCompare(b, 'fr'),
+    )
+    .map(([name, list]) => ({
+      name,
+      list: list.sort(
+        (a, b) =>
+          a.last_name.localeCompare(b.last_name, 'fr') ||
+          a.first_name.localeCompare(b.first_name, 'fr'),
+      ),
+    }))
+
+  // Hauteur d'une fiche : nom, activité (sur deux lignes au plus), coordonnées.
+  const card = (e: DirectoryEntry) => {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    const activity = (doc.splitTextToSize(e.activity, colW - 2) as string[]).slice(0, 2)
+    const contact = e.share_contact
+      ? [e.email, e.phone].filter((v) => v.trim() !== '').join('  ·  ')
+      : ''
+    const h = 5 + activity.length * 4.2 + (contact ? 4.4 : 0) + 4
+    return { e, activity, contact, h }
+  }
+
+  let y = titleBlock(
+    p,
+    header(p),
+    'Annuaire des participants',
+    '',
+    `${entries.length} participant${entries.length > 1 ? 's' : ''} · ${title} · ${date}`,
+  )
+  doc.setFont('helvetica', 'italic')
+  doc.setFontSize(8.5)
+  doc.setTextColor(GREY)
+  doc.text(
+    "Réservé aux participants de la soirée, pour reprendre contact entre vous — merci de ne pas le diffuser au-delà.",
+    p.M,
+    y - 4,
+  )
+  y += 2
+
+  const groupHead = (yy: number, name: string, n: number, cont: boolean) => {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.setTextColor(INK)
+    doc.text(name.toUpperCase(), p.M, yy)
+    if (cont) {
+      const w = doc.getTextWidth(name.toUpperCase())
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8.5)
+      doc.setTextColor(GREY)
+      doc.text('(suite)', p.M + w + 2.5, yy)
+    }
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8.5)
+    doc.setTextColor(GREY)
+    doc.text(`${n} personne${n > 1 ? 's' : ''}`, p.W - p.M, yy, { align: 'right' })
+    doc.setDrawColor(ORANGE)
+    doc.setLineWidth(0.6)
+    doc.line(p.M, yy + 2.2, p.M + 14, yy + 2.2)
+    doc.setDrawColor(RULE)
+    doc.setLineWidth(0.25)
+    doc.line(p.M + 14, yy + 2.2, p.W - p.M, yy + 2.2)
+    return yy + 8
+  }
+
+  for (const group of groups) {
+    const cards = group.list.map(card)
+    const rows: (typeof cards)[] = []
+    for (let i = 0; i < cards.length; i += cols) rows.push(cards.slice(i, i + cols))
+    const rowHeights = rows.map((r) => Math.max(...r.map((c) => c.h)))
+    const needed = 11 + rowHeights.reduce((a, b) => a + b, 0)
+
+    // Un groupe qui tient sur une page n'est jamais coupé.
+    if (y + needed > bottom && (needed <= bottom - 31 || y + 11 + rowHeights[0] > bottom)) {
+      doc.addPage()
+      y = header(p)
+    }
+    y = groupHead(y + 3, group.name, group.list.length, false)
+
+    rows.forEach((row, ri) => {
+      const rowH = rowHeights[ri]
+      if (y + rowH > bottom) {
+        doc.addPage()
+        y = groupHead(header(p) + 3, group.name, group.list.length, true)
+      }
+      row.forEach((c, ci) => {
+        const x = p.M + ci * (colW + colGap)
+        let ly = y + 4
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(10.5)
+        doc.setTextColor(INK)
+        doc.text(fit(doc, `${c.e.first_name} ${c.e.last_name.toUpperCase()}`, colW - 2), x, ly)
+        ly += 4.6
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9)
+        doc.setTextColor(GREY)
+        for (const line of c.activity) {
+          doc.text(line, x, ly)
+          ly += 4.2
+        }
+        if (c.contact) {
+          doc.setFontSize(8.5)
+          doc.setTextColor(ORANGE)
+          doc.text(fit(doc, c.contact, colW - 2), x, ly)
+        }
+      })
+      y += rowH
+    })
+    y += 3
+  }
+
+  footers(p)
+  return doc.output('blob')
+}

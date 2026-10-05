@@ -4,6 +4,7 @@ import Settings from './components/Settings'
 import RotationsView from './components/Rotations'
 import ScreenMode from './components/ScreenMode'
 import DataModal from './components/DataModal'
+import AdminPanel from './annuaire/AdminPanel'
 import { planSizes, solve, statsFor } from './solver'
 import { load, normalize, save } from './storage'
 import type { EventState, Participant } from './types'
@@ -17,6 +18,7 @@ export default function App() {
   const [screen, setScreen] = useState(false)
   const [screenIndex, setScreenIndex] = useState(0)
   const [modal, setModal] = useState(false)
+  const [annuaire, setAnnuaire] = useState(false)
 
   useEffect(() => save(state), [state])
 
@@ -167,6 +169,9 @@ export default function App() {
           </h1>
         </div>
         <div className="topbar-actions">
+          <button className="btn" onClick={() => setAnnuaire(true)}>
+            Annuaire
+          </button>
           <button className="btn" onClick={() => setModal(true)}>
             Sauvegarde &amp; export
           </button>
@@ -230,6 +235,8 @@ export default function App() {
           onClose={() => setScreen(false)}
         />
       )}
+
+      {annuaire && <AdminPanel onClose={() => setAnnuaire(false)} />}
 
       {modal && <DataModal state={state} onImport={importJson} onClose={() => setModal(false)} />}
     </div>

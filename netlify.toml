@@ -4,3 +4,9 @@
 
 [build.environment]
   NODE_VERSION = "22"
+
+# Pages publiques de l'annuaire : une seule application, routée côté navigateur.
+[[redirects]]
+  from = "/annuaire/*"
+  to = "/index.html"
+  status = 200
