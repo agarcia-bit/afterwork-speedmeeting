@@ -115,6 +115,10 @@ export default function App() {
       rotations: s.rotations.map((rot) => rot.map((t) => t.filter((x) => x !== id))),
     }))
 
+  // Vider la liste invalide le tirage, qui ne désigne plus personne.
+  const clearParticipants = () =>
+    setState((s) => ({ ...s, participants: [], rotations: [], lockedCount: 0 }))
+
   // --- Tirage ---
 
   function generate() {
@@ -200,6 +204,7 @@ export default function App() {
             onAddMany={addMany}
             onUpdate={updateParticipant}
             onRemove={removeParticipant}
+            onClearAll={clearParticipants}
           />
         </div>
         <div className="col">

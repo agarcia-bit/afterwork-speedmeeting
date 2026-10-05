@@ -9,6 +9,7 @@ interface Props {
   onAddMany: (rows: { name: string; group: string }[]) => void
   onUpdate: (id: string, patch: Partial<Participant>) => void
   onRemove: (id: string) => void
+  onClearAll: () => void
 }
 
 /** Jeu d'essai : les cinq associations de l'affiche, pour découvrir l'outil. */
@@ -25,10 +26,20 @@ const DEMO: { name: string; group: string }[] = [
   ['Camille Keller', 'ACAEM'], ['Maxime Lambert', 'ACAEM'],
 ].map(([name, group]) => ({ name, group }))
 
-export default function Participants({ participants, onAdd, onAddMany, onUpdate, onRemove }: Props) {
+export default function Participants({
+  participants,
+  onAdd,
+  onAddMany,
+  onUpdate,
+  onRemove,
+  onClearAll,
+}: Props) {
   const [name, setName] = useState('')
   const [group, setGroup] = useState('')
   const [importing, setImporting] = useState(false)
+  // Effacer toute la liste supprime aussi le tirage : on demande confirmation
+  // sur place, par un second clic.
+  const [confirmClear, setConfirmClear] = useState(false)
 
   const groups = useMemo(() => {
     const counts = new Map<string, number>()
@@ -55,11 +66,38 @@ export default function Participants({ participants, onAdd, onAddMany, onUpdate,
     <section className="card">
       <div className="card-head">
         <h2 className="card-title">Participants</h2>
-        <span className="card-hint">
-          {presentCount} présent{presentCount > 1 ? 's' : ''}
-          {participants.length !== presentCount ? ` / ${participants.length}` : ''}
-          {groups.length > 0 ? ` · ${groups.length} groupe${groups.length > 1 ? 's' : ''}` : ''}
-        </span>
+        <div className="head-right">
+          <span className="card-hint">
+            {presentCount} présent{presentCount > 1 ? 's' : ''}
+            {participants.length !== presentCount ? ` / ${participants.length}` : ''}
+            {groups.length > 0 ? ` · ${groups.length} groupe${groups.length > 1 ? 's' : ''}` : ''}
+          </span>
+          {participants.length > 0 &&
+            (confirmClear ? (
+              <>
+                <button
+                  className="btn btn-sm btn-danger"
+                  onClick={() => {
+                    onClearAll()
+                    setConfirmClear(false)
+                  }}
+                >
+                  Tout effacer ?
+                </button>
+                <button className="btn btn-sm btn-ghost" onClick={() => setConfirmClear(false)}>
+                  Annuler
+                </button>
+              </>
+            ) : (
+              <button
+                className="btn btn-sm btn-ghost"
+                onClick={() => setConfirmClear(true)}
+                title="Vider la liste et effacer le tirage"
+              >
+                Tout effacer
+              </button>
+            ))}
+        </div>
       </div>
 
       <form className="add-form" onSubmit={submit}>
