@@ -7,6 +7,11 @@ interface Props {
   people: Map<string, Participant>
   /** Le nom du groupe n'est utile qu'à l'impression : à l'écran, la couleur suffit. */
   showGroup?: boolean
+  /**
+   * Signale les membres d'une même association assis ensemble. Information
+   * d'organisation : elle n'a pas à être projetée devant les participants.
+   */
+  showConflicts?: boolean
   /** Participant suivi à travers les rotations. */
   focusId?: string | null
   onFocus?: (id: string) => void
@@ -32,10 +37,11 @@ export default function TableCard({
   ids,
   people,
   showGroup = true,
+  showConflicts = true,
   focusId = null,
   onFocus,
 }: Props) {
-  const conflicts = conflictingIds(ids, people)
+  const conflicts = showConflicts ? conflictingIds(ids, people) : new Set<string>()
   const seats = ids
     .map((id) => people.get(id))
     .filter((p): p is Participant => p !== undefined)

@@ -72,18 +72,10 @@ export default function Rotations({
 
       {stats && (
         <div className="stats">
-          <div
-            className={`stat ${
-              stats.groupConflicts === 0
-                ? 'good'
-                : stats.groupConflicts <= stats.minConflicts
-                  ? 'warn'
-                  : 'bad'
-            }`}
-          >
+          <div className={`stat ${stats.groupConflicts === 0 ? 'good' : ''}`}>
             <div className="stat-value">{stats.groupConflicts}</div>
             <div className="stat-label">
-              Conflit{stats.groupConflicts > 1 ? 's' : ''} de groupe
+              Mêmes assos à une table
               {stats.minConflicts > 0 && stats.groupConflicts <= stats.minConflicts
                 ? ' · minimum inévitable'
                 : ''}

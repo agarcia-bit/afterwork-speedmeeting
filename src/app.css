@@ -372,7 +372,7 @@ input::placeholder, textarea::placeholder { color: #6d6053; }
   padding: 12px 12px 10px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-.table-card.conflict { border-color: rgba(228, 87, 46, 0.55); }
+.table-card.conflict { border-color: var(--line); }
 .table-card.focused {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px rgba(232, 134, 42, 0.3);
@@ -435,7 +435,10 @@ button.seat:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
 .seat-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Le nom du groupe ne sert qu'à l'impression : à l'écran, la pastille suffit. */
 .seat-group { display: none; }
-.seat.conflict { color: var(--danger); }
+.seat.conflict .seat-name {
+  text-decoration: underline dotted var(--line);
+  text-underline-offset: 3px;
+}
 .seat.is-focus {
   background: rgba(232, 134, 42, 0.16);
   color: var(--accent-soft);
@@ -464,59 +467,171 @@ button.seat:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
 .focus-bar .btn-icon { margin-left: auto; }
 
 /* ---------- Mode écran ---------- */
+/* Projeté en salle : lisible de loin, sans rien d'interne — ni association,
+   ni signalement de regroupement. Les tables sont paginées pour que les noms
+   restent grands quelle que soit la taille de la soirée. */
 
 .screen {
   position: fixed;
   inset: 0;
   z-index: 50;
-  background: var(--bg);
   display: flex;
   flex-direction: column;
-  padding: 26px 32px;
-  overflow: auto;
+  gap: clamp(16px, 2.2vh, 34px);
+  padding: clamp(18px, 3vh, 44px) clamp(20px, 3vw, 56px);
+  background:
+    radial-gradient(1400px 700px at 50% -20%, rgba(232, 134, 42, 0.18), transparent 65%),
+    var(--bg);
+  overflow: hidden;
 }
-.screen-head { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 22px; }
-.screen-title {
+
+.screen-head { display: flex; align-items: center; gap: clamp(16px, 3vw, 48px); flex-wrap: wrap; }
+
+.screen-kicker {
+  display: block;
   font-family: var(--font-title);
-  font-size: clamp(28px, 4vw, 46px);
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-size: clamp(10px, 1vw, 14px);
+  letter-spacing: 0.3em;
   text-transform: uppercase;
-  margin: 0;
+  color: var(--accent);
+  margin-bottom: 4px;
 }
-.screen-head .spacer { flex: 1; }
+.screen-title h2 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: clamp(26px, 3.6vw, 56px);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.screen-title h2 b { font-weight: 700; }
+.screen-of {
+  font-size: 0.45em;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+  margin-left: 0.6em;
+}
 
 .timer {
+  margin-left: auto;
   font-family: var(--font-title);
-  font-size: clamp(46px, 8vw, 92px);
+  font-size: clamp(44px, 7.5vw, 104px);
   font-weight: 600;
-  line-height: 0.95;
+  line-height: 0.9;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
 }
 .timer.low { color: var(--accent); }
 .timer.over { color: var(--danger); }
 
-.screen-tables {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 14px;
-  flex: 1;
-  align-content: center;
+/* Les commandes servent à l'animateur, pas au public : discrètes au repos. */
+.screen-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  opacity: 0.4;
+  transition: opacity 0.25s;
 }
-.screen-tables .table-card { padding: 14px 16px 16px; }
-.screen-tables .table-num {
-  width: clamp(28px, 3vw, 40px);
-  height: clamp(28px, 3vw, 40px);
-  font-size: clamp(16px, 1.9vw, 24px);
-}
-.screen-tables .table-label { font-size: clamp(11px, 1.1vw, 15px); }
-.screen-tables .table-count { font-size: clamp(11px, 1vw, 14px); }
-.screen-tables .table-mix span { height: 5px; }
-.screen-tables .seat { font-size: clamp(16px, 1.9vw, 30px); padding: 5px 6px; }
-.screen-tables .seat .dot { width: 10px; height: 10px; }
+.screen:hover .screen-controls,
+.screen-controls:focus-within { opacity: 1; }
 
-.screen-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.screen-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+  /* Les rangées se partagent la hauteur disponible : rien ne déborde sous le
+     pied de page, quel que soit le nombre de convives par table. */
+  grid-auto-rows: minmax(0, 1fr);
+  gap: clamp(12px, 1.6vw, 26px);
+  min-height: 0;
+}
+
+.screen-table {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: clamp(12px, 1.5vw, 26px) clamp(14px, 1.6vw, 30px) clamp(14px, 1.6vw, 28px);
+  border: 1px solid var(--line-soft);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(43, 36, 28, 0.85), rgba(28, 23, 18, 0.85));
+}
+.screen-table h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin: 0 0 clamp(10px, 1.2vh, 20px);
+  padding-bottom: clamp(8px, 1vh, 16px);
+  border-bottom: 1px solid var(--line-soft);
+  font-family: var(--font-title);
+  font-size: clamp(13px, 1.3vw, 22px);
+  font-weight: 500;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.screen-table-num {
+  display: grid;
+  place-items: center;
+  width: 1.9em;
+  height: 1.9em;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #1a1208;
+  font-size: 1.15em;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.screen-table ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.screen-table li {
+  /* Taille ajustée au rendu par le mode écran, pour que rien ne soit coupé. */
+  font-size: var(--name-size, 22px);
+  line-height: 1.24;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  /* Un nom long passe à la ligne plutôt que d'être coupé. */
+  overflow-wrap: anywhere;
+}
+
+.screen-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  font-size: clamp(11px, 1vw, 15px);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.screen-dots { display: flex; gap: 7px; }
+.screen-dot {
+  width: 9px;
+  height: 9px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.screen-dot.on { background: var(--accent); border-color: var(--accent); }
+
+@media (max-width: 900px) {
+  .screen-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .screen { overflow: auto; }
+}
 
 @media print {
   body { background: #fff; color: #000; }

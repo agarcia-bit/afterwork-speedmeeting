@@ -62,12 +62,15 @@ export default function App() {
       const g = p.group.trim()
       if (g) counts.set(g, (counts.get(g) ?? 0) + 1)
     }
-    for (const [g, n] of counts) {
-      if (n > tableCount) {
-        out.push(
-          `!Le groupe « ${g} » compte ${n} personnes pour seulement ${tableCount} tables : au moins ${n - tableCount} de ses membres se retrouvent ensemble à chaque rotation. Il faudrait ${n} tables pour les séparer tous.`,
-        )
-      }
+    const oversized = [...counts]
+      .filter(([, n]) => n > tableCount)
+      .sort((a, b) => b[1] - a[1])
+    if (oversized.length > 0) {
+      out.push(
+        `Avec ${tableCount} tables, ces associations sont trop nombreuses pour être séparées à chaque tour : ${oversized
+          .map(([g, n]) => `${g} (${n})`)
+          .join(', ')}. L'outil les étale au mieux — quelques membres se retrouveront ensemble, ce qui n'a rien d'anormal.`,
+      )
     }
 
     const maxClean = biggest > 1 ? Math.floor((present.length - 1) / (biggest - 1)) : 0
@@ -77,11 +80,6 @@ export default function App() {
       )
     }
 
-    if (stats && stats.groupConflicts > 0 && counts.size > 0) {
-      out.push(
-        `!${stats.groupConflicts} rencontre${stats.groupConflicts > 1 ? 's' : ''} entre membres d'un même groupe n'${stats.groupConflicts > 1 ? 'ont' : 'a'} pas pu être évitée${stats.groupConflicts > 1 ? 's' : ''} (signalée${stats.groupConflicts > 1 ? 's' : ''} en rouge dans les tables).`,
-      )
-    }
     return out
   }, [present, sizes, state.tableMode, state.tableCount, state.rotationCount, stats])
 
