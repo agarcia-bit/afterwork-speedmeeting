@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { Participant } from '../types'
 import { groupColor } from '../colors'
+import ImportModal from './ImportModal'
 
 interface Props {
   participants: Participant[]
@@ -8,20 +9,6 @@ interface Props {
   onAddMany: (rows: { name: string; group: string }[]) => void
   onUpdate: (id: string, patch: Partial<Participant>) => void
   onRemove: (id: string) => void
-}
-
-/** Une ligne = « Nom », « Nom<TAB>Groupe », « Nom ; Groupe » ou « Nom , Groupe ». */
-export function parseRows(text: string): { name: string; group: string }[] {
-  return text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const sep = line.includes('\t') ? '\t' : line.includes(';') ? ';' : ','
-      const [name, ...rest] = line.split(sep)
-      return { name: name.trim(), group: rest.join(sep).trim() }
-    })
-    .filter((row) => row.name !== '')
 }
 
 /** Jeu d'essai : les cinq associations de l'affiche, pour découvrir l'outil. */
@@ -41,8 +28,7 @@ const DEMO: { name: string; group: string }[] = [
 export default function Participants({ participants, onAdd, onAddMany, onUpdate, onRemove }: Props) {
   const [name, setName] = useState('')
   const [group, setGroup] = useState('')
-  const [paste, setPaste] = useState('')
-  const [pasteOpen, setPasteOpen] = useState(false)
+  const [importing, setImporting] = useState(false)
 
   const groups = useMemo(() => {
     const counts = new Map<string, number>()
@@ -63,14 +49,6 @@ export default function Participants({ participants, onAdd, onAddMany, onUpdate,
     onAdd(trimmed, group.trim())
     setName('')
     // Le groupe reste en place : on saisit souvent une asso d'affilée.
-  }
-
-  function importPaste() {
-    const rows = parseRows(paste)
-    if (rows.length === 0) return
-    onAddMany(rows)
-    setPaste('')
-    setPasteOpen(false)
   }
 
   return (
@@ -104,6 +82,12 @@ export default function Participants({ participants, onAdd, onAddMany, onUpdate,
           Ajouter
         </button>
       </form>
+
+      <div className="import-row">
+        <button className="btn btn-sm btn-ghost" onClick={() => setImporting(true)}>
+          Importer une liste (tableur, mail…)
+        </button>
+      </div>
 
       <datalist id="known-groups">
         {groups.map(([g]) => (
@@ -167,30 +151,13 @@ export default function Participants({ participants, onAdd, onAddMany, onUpdate,
         ))}
       </div>
 
-      <div className="paste-area">
-        {pasteOpen ? (
-          <>
-            <textarea
-              placeholder={'Une personne par ligne :\nMarie Dupont ; ARCOPRO\nPaul Martin ; UCAP\nSans groupe'}
-              value={paste}
-              onChange={(e) => setPaste(e.target.value)}
-            />
-            <div className="generate-row">
-              <button className="btn btn-primary" onClick={importPaste}>
-                Importer {parseRows(paste).length || ''} participant
-                {parseRows(paste).length > 1 ? 's' : ''}
-              </button>
-              <button className="btn btn-ghost" onClick={() => setPasteOpen(false)}>
-                Annuler
-              </button>
-            </div>
-          </>
-        ) : (
-          <button className="btn btn-ghost btn-sm" onClick={() => setPasteOpen(true)}>
-            + Coller une liste (Excel, mail…)
-          </button>
-        )}
-      </div>
+      {importing && (
+        <ImportModal
+          participants={participants}
+          onImport={onAddMany}
+          onClose={() => setImporting(false)}
+        />
+      )}
     </section>
   )
 }

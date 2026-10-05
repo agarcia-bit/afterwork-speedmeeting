@@ -606,3 +606,55 @@ button.seat:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
 .verdict b { color: var(--text); font-weight: 600; }
 .verdict.ok { border-left-color: var(--ok); }
 .verdict.ok b { color: var(--ok); }
+
+/* ---------- Import d'une liste ---------- */
+
+.import-row { margin: -4px 0 12px; }
+.import-text { min-height: 150px; }
+
+.choices { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.choice { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.choice-label {
+  flex: none;
+  width: 94px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.choice-options { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.preview-table {
+  width: 100%;
+  margin-top: 16px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.preview-table th {
+  text-align: left;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  padding: 0 10px 6px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.preview-table td {
+  padding: 6px 10px 6px 0;
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: middle;
+}
+.preview-table td:last-child { color: var(--muted); font-size: 11.5px; text-align: right; }
+.preview-table tr.dup td:first-child { color: var(--muted); text-decoration: line-through; }
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.check input { width: auto; accent-color: var(--accent); }
