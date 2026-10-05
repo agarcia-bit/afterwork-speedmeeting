@@ -1,6 +1,6 @@
 import type { Participant } from './types'
 
-export const NO_GROUP = 'Sans association'
+export const NO_GROUP = 'Sans groupe'
 
 export interface Journey {
   person: Participant

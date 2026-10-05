@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { Participant } from '../types'
 import { groupColor } from '../colors'
 import ImportModal from './ImportModal'
+import { NO_GROUP } from '../journeys'
 
 interface Props {
   participants: Participant[]
@@ -52,6 +53,7 @@ export default function Participants({
   }, [participants])
 
   const presentCount = participants.filter((p) => p.present).length
+  const ungrouped = participants.filter((p) => p.present && !p.group.trim()).length
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -133,7 +135,7 @@ export default function Participants({
         ))}
       </datalist>
 
-      {groups.length > 0 && (
+      {(groups.length > 0 || ungrouped > 0) && (
         <div className="legend">
           {groups.map(([g, n]) => (
             <span className="chip" key={g}>
@@ -141,6 +143,12 @@ export default function Participants({
               {g} <b>{n}</b>
             </span>
           ))}
+          {ungrouped > 0 && (
+            <span className="chip">
+              <span className="dot" style={{ background: groupColor('') }} />
+              {NO_GROUP} <b>{ungrouped}</b>
+            </span>
+          )}
         </div>
       )}
 

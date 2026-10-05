@@ -4,6 +4,7 @@ import type { SolveStats } from '../solver'
 import { groupColor } from '../colors'
 import TableCard from './TableCard'
 import PersonList from './PersonList'
+import { NO_GROUP } from '../journeys'
 import { personListingPdf, tableListingPdf } from '../listing'
 import { saveFile } from '../download'
 
@@ -61,12 +62,15 @@ export default function Rotations({
 
   // Les groupes présents dans le tirage : la couleur remplace le nom sur les cartes.
   const legend = new Map<string, string>()
+  let hasUngrouped = false
   for (const rot of rotations)
     for (const table of rot)
       for (const id of table) {
         const g = people.get(id)?.group.trim()
         if (g) legend.set(g, groupColor(g))
+        else if (g === '') hasUngrouped = true
       }
+  if (hasUngrouped) legend.set(NO_GROUP, groupColor(''))
 
   if (rotations.length === 0) {
     return (
