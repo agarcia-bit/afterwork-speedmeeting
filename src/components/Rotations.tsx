@@ -160,7 +160,9 @@ export default function Rotations({
         return (
           <div className="rotation" key={r}>
             <div className="rotation-head">
-              <h3 className="rotation-name">Rotation {r + 1}</h3>
+              <h3 className="rotation-name">
+                Rotation <b>{r + 1}</b>
+              </h3>
               {locked && <span className="badge locked">verrouillée</span>}
               <span className="spacer" />
               {locked ? (

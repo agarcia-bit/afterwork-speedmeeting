@@ -158,13 +158,13 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark">Le 14 Avenue</span>
-          <div>
-            <h1 className="brand-title">
-              Afterwork <em>Interasso</em>
-            </h1>
-            <p className="brand-sub">Speed meeting — plan de tables</p>
-          </div>
+          <p className="brand-kicker">
+            <span className="brand-mark">Le 14 Avenue</span>
+            Speed meeting · plan de tables
+          </p>
+          <h1 className="brand-title">
+            Afterwork <em>Interasso</em>
+          </h1>
         </div>
         <div className="topbar-actions">
           <button className="btn" onClick={() => setModal(true)}>
