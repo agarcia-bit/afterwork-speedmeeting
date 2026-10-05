@@ -3,6 +3,7 @@
 // et pour une impression sans vider une cartouche.
 import { jsPDF } from 'jspdf'
 import type { EventState, Participant } from './types'
+import { LOGO_14_AVENUE, LOGO_RATIO } from './logo'
 
 const ORANGE = '#d97219'
 const INK = '#1c1712'
@@ -53,6 +54,8 @@ const M = 14
 function drawSheet(doc: jsPDF, state: EventState, p: Participant) {
   const rows = sheetRows(state, p.id)
 
+  const logoW = 11
+  doc.addImage(LOGO_14_AVENUE, 'PNG', W - M - logoW, 8, logoW, logoW * LOGO_RATIO)
   doc.setFillColor(ORANGE)
   doc.rect(M, 14.5, 3, 3, 'F')
   doc.setFont('helvetica', 'bold')

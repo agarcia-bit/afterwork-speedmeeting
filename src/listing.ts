@@ -4,6 +4,7 @@
 import { jsPDF } from 'jspdf'
 import type { Participant } from './types'
 import { journeysByGroup } from './journeys'
+import { LOGO_14_AVENUE, LOGO_RATIO } from './logo'
 
 const INK = '#1c1712'
 const GREY = '#7d7166'
@@ -23,16 +24,18 @@ interface Page {
 /** En-tête commun à chaque feuille ; renvoie l'ordonnée où commence le contenu. */
 function header(p: Page): number {
   const { doc, M, W } = p
+  const logoW = 12
+  doc.addImage(LOGO_14_AVENUE, 'PNG', W - M - logoW, 7, logoW, logoW * LOGO_RATIO)
   doc.setFillColor(ORANGE)
-  doc.rect(M, 12.5, 2.6, 2.6, 'F')
+  doc.rect(M, 13, 2.6, 2.6, 'F')
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(7.5)
   doc.setTextColor(GREY)
-  doc.text(`${p.title.toUpperCase()} · ${p.label.toUpperCase()}`, M + 5, 14.8, { charSpace: 0.4 })
+  doc.text(`${p.title.toUpperCase()} · ${p.label.toUpperCase()}`, M + 5, 15.3, { charSpace: 0.4 })
   doc.setDrawColor(RULE)
   doc.setLineWidth(0.3)
-  doc.line(M, 19, W - M, 19)
-  return 27
+  doc.line(M, 23, W - M, 23)
+  return 31
 }
 
 /** Pied de page, posé une fois le document complet pour connaître le total. */
@@ -65,7 +68,7 @@ function titleBlock(p: Page, y: number, title: string, accent: string, sub: stri
   doc.text(title, M, y + 6)
   if (accent) {
     doc.setTextColor(ORANGE)
-    doc.text(accent, M + doc.getTextWidth(`${title} `), y + 6)
+    doc.text(accent, M + doc.getTextWidth(`${title} `) + 0.5, y + 6)
   }
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
@@ -76,7 +79,10 @@ function titleBlock(p: Page, y: number, title: string, accent: string, sub: stri
 
 // ---------------------------------------------------------------------------
 
-/** Parcours de chaque personne, classé par association. A4 portrait. */
+/**
+ * Parcours de chaque personne, une association par page — chaque page peut
+ * ainsi être remise ou envoyée à l'association concernée. A4 portrait.
+ */
 export function personListingPdf(
   title: string,
   rotations: string[][][],
@@ -85,22 +91,12 @@ export function personListingPdf(
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true })
   const p: Page = { doc, W: 210, H: 297, M: 16, title, label: 'Parcours par personne' }
   const groups = journeysByGroup(rotations, people)
-  const count = groups.reduce((n, g) => n + g.members.length, 0)
 
   const R = rotations.length
   const colW = Math.min(14, 100 / Math.max(1, R))
   const nameW = p.W - 2 * p.M - colW * R
   const rowH = 6.4
   const bottom = p.H - 18
-
-  let y = header(p)
-  y = titleBlock(
-    p,
-    y,
-    'Parcours par personne',
-    '',
-    `${count} participant${count > 1 ? 's' : ''} · ${R} rotation${R > 1 ? 's' : ''} · ${groups.length} association${groups.length > 1 ? 's' : ''}`,
-  )
 
   const columnHeads = (yy: number) => {
     doc.setFont('helvetica', 'bold')
@@ -110,46 +106,30 @@ export function personListingPdf(
     for (let r = 0; r < R; r++) {
       doc.text(`R${r + 1}`, p.M + nameW + colW * r + colW / 2, yy, { align: 'center' })
     }
+    doc.setDrawColor(RULE)
+    doc.setLineWidth(0.25)
+    doc.line(p.M, yy + 2, p.W - p.M, yy + 2)
     return yy + 3
   }
 
-  const groupHead = (yy: number, name: string, n: number, cont: boolean) => {
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(12)
-    doc.setTextColor(INK)
-    doc.text(name.toUpperCase(), p.M, yy)
-    const w = doc.getTextWidth(name.toUpperCase())
-    if (cont) {
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(9)
-      doc.setTextColor(GREY)
-      doc.text('(suite)', p.M + w + 2.5, yy)
-    }
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(8.5)
-    doc.setTextColor(GREY)
-    doc.text(`${n} personne${n > 1 ? 's' : ''}`, p.W - p.M, yy, { align: 'right' })
+  const groupTop = (name: string, n: number, cont: boolean) => {
+    const sub = `${n} personne${n > 1 ? 's' : ''} · ${R} rotation${R > 1 ? 's' : ''}`
+    const y = titleBlock(p, header(p), name, cont ? '(suite)' : '', sub)
+    // Petit filet d'accent sous le nom de l'association.
     doc.setDrawColor(ORANGE)
-    doc.setLineWidth(0.6)
-    doc.line(p.M, yy + 2.2, p.M + 14, yy + 2.2)
-    doc.setDrawColor(RULE)
-    doc.setLineWidth(0.25)
-    doc.line(p.M + 14, yy + 2.2, p.W - p.M, yy + 2.2)
-    return columnHeads(yy + 8)
+    doc.setLineWidth(0.8)
+    doc.line(p.M, y - 5, p.M + 16, y - 5)
+    return columnHeads(y + 2)
   }
 
-  for (const group of groups) {
-    // Un titre d'association n'est jamais laissé seul en bas de page.
-    if (y + 8 + 3 + rowH * Math.min(3, group.members.length) > bottom) {
-      doc.addPage()
-      y = header(p)
-    }
-    y = groupHead(y + 4, group.name, group.members.length, false)
+  groups.forEach((group, gi) => {
+    if (gi > 0) doc.addPage()
+    let y = groupTop(group.name, group.members.length, false)
 
     group.members.forEach((j, i) => {
       if (y + rowH > bottom) {
         doc.addPage()
-        y = groupHead(header(p) + 4, group.name, group.members.length, true)
+        y = groupTop(group.name, group.members.length, true)
       }
       if (i % 2 === 1) {
         doc.setFillColor(ZEBRA)
@@ -169,8 +149,7 @@ export function personListingPdf(
       })
       y += rowH
     })
-    y += 4
-  }
+  })
 
   footers(p)
   return doc.output('blob')
