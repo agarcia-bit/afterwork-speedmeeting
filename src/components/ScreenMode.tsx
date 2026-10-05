@@ -10,9 +10,9 @@ interface Props {
   onClose: () => void
 }
 
-/** Au-delà, les noms ne tiennent plus en grand : on pagine. */
-const MAX_TABLES_PER_PAGE = 6
-const PAGE_SECONDS = 12
+/** Bornes de la taille des noms, en pixels. */
+const MIN_NAME = 9
+const MAX_NAME = 56
 
 function beep() {
   try {
@@ -40,35 +40,42 @@ function beep() {
   }
 }
 
-/** Découpe les tables en pages de taille équilibrée. */
-function paginate<T>(items: T[]): T[][] {
-  if (items.length <= MAX_TABLES_PER_PAGE) return [items]
-  const pages = Math.ceil(items.length / MAX_TABLES_PER_PAGE)
-  const size = Math.ceil(items.length / pages)
-  return Array.from({ length: pages }, (_, i) => items.slice(i * size, (i + 1) * size))
-}
-
 export default function ScreenMode({ rotations, people, minutes, index, onIndex, onClose }: Props) {
   const total = minutes * 60
   const [remaining, setRemaining] = useState(total)
   const [running, setRunning] = useState(false)
-  const [page, setPage] = useState(0)
   const rang = useRef(false)
   const grid = useRef<HTMLDivElement>(null)
 
-  const tables = rotations[index] ?? []
-  const pages = useMemo(
-    () => paginate(tables.map((ids, t) => ({ number: t + 1, ids }))),
-    [tables],
+  const tables = useMemo(
+    () =>
+      (rotations[index] ?? []).map((ids, t) => ({
+        number: t + 1,
+        seats: ids
+          .map((id) => people.get(id))
+          .filter((p): p is Participant => p !== undefined)
+          .sort((a, b) => a.name.localeCompare(b.name, 'fr')),
+      })),
+    [rotations, index, people],
   )
-  const current = pages[Math.min(page, pages.length - 1)] ?? []
 
   useEffect(() => {
     setRemaining(total)
     setRunning(false)
-    setPage(0)
     rang.current = false
   }, [total, index])
+
+  // Rien ne doit bouger sous l'écran projeté, molette comprise.
+  useEffect(() => {
+    const root = document.documentElement
+    const previous = { body: document.body.style.overflow, root: root.style.overflow }
+    document.body.style.overflow = 'hidden'
+    root.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previous.body
+      root.style.overflow = previous.root
+    }
+  }, [])
 
   useEffect(() => {
     if (!running) return
@@ -83,36 +90,53 @@ export default function ScreenMode({ rotations, people, minutes, index, onIndex,
     }
   }, [remaining])
 
-  // Défilement des pages : chacun doit voir sa table sans qu'on touche à rien.
-  useEffect(() => {
-    if (pages.length < 2) return
-    const id = setInterval(
-      () => setPage((p) => (p + 1) % pages.length),
-      PAGE_SECONDS * 1000,
-    )
-    return () => clearInterval(id)
-  }, [pages.length, index])
-
-  // La taille des noms dépend du nombre de tables affichées et de convives par
-  // table : plutôt que de l'estimer, on l'ajuste sur le rendu réel jusqu'à ce
-  // que chaque liste tienne entièrement dans sa carte.
+  // Toutes les tables doivent tenir sur un seul écran, sans défilement ni
+  // changement de page : chacun doit pouvoir y lire la sienne. On essaie
+  // chaque découpage en colonnes et on garde celui qui permet les plus grands
+  // noms, mesuré sur le rendu réel plutôt qu'estimé.
   useLayoutEffect(() => {
     const el = grid.current
-    if (!el) return
+    if (!el || tables.length === 0) return
+
     const fit = () => {
-      const lists = Array.from(el.querySelectorAll('ul'))
-      const overflows = () => lists.some((u) => u.scrollHeight > u.clientHeight + 1)
-      let size = 40
-      el.style.setProperty('--name-size', `${size}px`)
-      while (size > 12 && overflows()) {
-        size -= 1
-        el.style.setProperty('--name-size', `${size}px`)
+      const clipped = () =>
+        Array.from(el.querySelectorAll('ul')).some((u) => u.scrollHeight > u.clientHeight + 1) ||
+        el.scrollHeight > el.clientHeight + 1
+
+      const tryColumns = (columns: number) => {
+        el.style.setProperty('--cols', String(columns))
+        let low = MIN_NAME
+        let high = MAX_NAME
+        let best = 0
+        while (low <= high) {
+          const mid = Math.floor((low + high) / 2)
+          el.style.setProperty('--name-size', `${mid}px`)
+          if (clipped()) high = mid - 1
+          else {
+            best = mid
+            low = mid + 1
+          }
+        }
+        return best
       }
+
+      let bestColumns = 1
+      let bestSize = 0
+      for (let columns = 1; columns <= Math.min(tables.length, 8); columns++) {
+        const size = tryColumns(columns)
+        if (size > bestSize) {
+          bestSize = size
+          bestColumns = columns
+        }
+      }
+      el.style.setProperty('--cols', String(bestColumns))
+      el.style.setProperty('--name-size', `${Math.max(bestSize, MIN_NAME)}px`)
     }
+
     fit()
     window.addEventListener('resize', fit)
     return () => window.removeEventListener('resize', fit)
-  }, [page, index, pages])
+  }, [tables])
 
   const go = useCallback(
     (delta: number) => onIndex(Math.min(rotations.length - 1, Math.max(0, index + delta))),
@@ -124,24 +148,21 @@ export default function ScreenMode({ rotations, people, minutes, index, onIndex,
       if (e.key === 'Escape') onClose()
       else if (e.key === 'ArrowRight') go(1)
       else if (e.key === 'ArrowLeft') go(-1)
-      else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault()
-        setPage((p) => (p + (e.key === 'ArrowDown' ? 1 : pages.length - 1)) % pages.length)
-      } else if (e.key === ' ') {
+      else if (e.key === ' ') {
         e.preventDefault()
         setRunning((r) => !r)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [go, onClose, pages.length])
+  }, [go, onClose])
 
   const over = remaining < 0
   const abs = Math.abs(remaining)
   const clock = `${over ? '+' : ''}${Math.floor(abs / 60)}:${String(abs % 60).padStart(2, '0')}`
 
   return (
-    <div className="screen" style={{ ['--cols' as string]: Math.min(3, current.length) }}>
+    <div className="screen">
       <header className="screen-head">
         <div className="screen-title">
           <span className="screen-kicker">Afterwork Interasso</span>
@@ -180,44 +201,20 @@ export default function ScreenMode({ rotations, people, minutes, index, onIndex,
       </header>
 
       <div className="screen-grid" ref={grid}>
-        {current.map(({ number, ids }) => {
-          const seats = ids
-            .map((id) => people.get(id))
-            .filter((p): p is Participant => p !== undefined)
-            .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
-          return (
-            <section className="screen-table" key={number}>
-              <h3>
-                <span className="screen-table-num">{number}</span>
-                Table
-              </h3>
-              <ul>
-                {seats.map((p) => (
-                  <li key={p.id}>{p.name}</li>
-                ))}
-              </ul>
-            </section>
-          )
-        })}
+        {tables.map(({ number, seats }) => (
+          <section className="screen-table" key={number}>
+            <h3>
+              <span className="screen-table-num">{number}</span>
+              Table
+            </h3>
+            <ul>
+              {seats.map((p) => (
+                <li key={p.id}>{p.name}</li>
+              ))}
+            </ul>
+          </section>
+        ))}
       </div>
-
-      {pages.length > 1 && (
-        <footer className="screen-foot">
-          <span>
-            Tables {current[0]?.number} à {current[current.length - 1]?.number} sur {tables.length}
-          </span>
-          <div className="screen-dots">
-            {pages.map((_, i) => (
-              <button
-                key={i}
-                className={`screen-dot${i === page % pages.length ? ' on' : ''}`}
-                onClick={() => setPage(i)}
-                aria-label={`Page ${i + 1}`}
-              />
-            ))}
-          </div>
-        </footer>
-      )}
     </div>
   )
 }
