@@ -92,8 +92,13 @@ export default function Rotations({
             </div>
           </div>
           <div className="stat">
-            <div className="stat-value">{stats.uniquePairs}</div>
-            <div className="stat-label">Paires réunies ({pct(stats.coverage)} du total)</div>
+            {/* Chaque duo réuni compte comme une rencontre pour chacune des deux personnes. */}
+            <div className="stat-value">
+              {stats.present > 0 ? Math.round((2 * stats.uniquePairs) / stats.present) : 0}
+            </div>
+            <div className="stat-label">
+              Rencontres par personne · {pct(stats.coverage)} de la salle
+            </div>
           </div>
         </div>
       )}
