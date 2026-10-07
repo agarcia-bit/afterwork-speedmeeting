@@ -4,6 +4,8 @@ import { CONSENT_VERSION, selfUrl } from './config'
 import EntryForm from './EntryForm'
 import Legal from './Legal'
 import { LOGO_14_AVENUE_LIGHT } from '../logo'
+import { useSequence } from './motion'
+import SplitText from './SplitText'
 import './public.css'
 
 /** Titre de la page : la marque de la soirée, le remerciement, ou un titre simple. */
@@ -17,7 +19,7 @@ function HeroTitle({ hero }: { hero: Hero }) {
     return (
       <>
         <h1 className="hero" aria-label="Afterwork Speed meeting">
-          <span className="hero-line1">Afterwork</span>
+          <SplitText className="hero-line1" text="Afterwork" />
           <span className="hero-line2">Speed meeting</span>
         </h1>
         <p className="public-sub">{hero.subtitle}</p>
@@ -27,7 +29,7 @@ function HeroTitle({ hero }: { hero: Hero }) {
   if (hero.kind === 'thanks') {
     return (
       <h1 className="hero hero-thanks" aria-label="Merci d'avoir participé !">
-        <span className="hero-line1">Merci</span>
+        <SplitText className="hero-line1" text="Merci" />
         <span className="hero-line2">d'avoir participé !</span>
       </h1>
     )
@@ -35,9 +37,30 @@ function HeroTitle({ hero }: { hero: Hero }) {
   return <h1 className="public-title">{hero.title}</h1>
 }
 
-function Shell({ kicker, hero, children }: { kicker: string; hero: Hero; children?: ReactNode }) {
+/** Durées des séquences, alignées sur les délais de public.css. */
+const SEQUENCE_MS = { brand: 2300, thanks: 2400 }
+
+type ShellProps = { kicker: string; hero: Hero; children?: ReactNode }
+
+// Une page par état : changer d'état remonte la page, et rejoue la séquence
+// qui lui correspond (ouverture de marque, remerciement), jamais l'autre.
+function Shell(props: ShellProps) {
+  return <ShellPage key={props.hero.kind} {...props} />
+}
+
+function ShellPage({ kicker, hero, children }: ShellProps) {
+  const playing = useSequence(
+    hero.kind === 'brand'
+      ? { duration: SEQUENCE_MS.brand, once: 'annuaire-intro-vue' }
+      : hero.kind === 'thanks'
+        ? { duration: SEQUENCE_MS.thanks }
+        : { duration: 0, enabled: false },
+  )
+  const sequence = playing ? (hero.kind === 'brand' ? ' intro' : ' outro') : ''
+
   return (
-    <div className="public">
+    <div className={`public${sequence}`}>
+      <div className="public-glow" aria-hidden="true" />
       <header className="public-head">
         <img className="public-logo" src={LOGO_14_AVENUE_LIGHT} alt="Le 14 Avenue" />
         <p className="public-kicker">{kicker}</p>

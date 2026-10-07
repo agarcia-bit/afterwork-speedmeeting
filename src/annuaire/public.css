@@ -161,3 +161,91 @@
   text-transform: none;
   letter-spacing: 0.01em;
 }
+
+/* ---------- Mise en scène ---------- */
+/* Les séquences ne jouent que sous .intro (ouverture) ou .outro (remerciement),
+   classes posées le temps de l'animation. Sans elles, chaque élément est déjà à
+   sa place finale : la page reste lisible si l'animation ne joue pas, et
+   « réduire les animations » revient simplement à ne pas les poser. */
+
+.public { position: relative; z-index: 1; }
+
+/* Halo de lumière de bar derrière le titre. */
+.public-glow {
+  position: fixed;
+  top: -14vh;
+  left: 50%;
+  width: min(150vw, 1100px);
+  aspect-ratio: 1;
+  translate: -50% 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    closest-side,
+    rgba(232, 134, 42, 0.3),
+    rgba(232, 134, 42, 0.08) 55%,
+    transparent 72%
+  );
+}
+
+/* Le rideau des lettres a besoin d'un masque ; marges compensées pour ne rien
+   décaler et ne pas rogner les capitales. */
+.hero-line1 { display: inline-block; overflow: hidden; padding: 0.1em 0.04em; margin: -0.1em -0.04em; }
+.hero-line1 .char { display: inline-block; }
+.hero-line2 { position: relative; display: inline-block; }
+
+@keyframes pub-glow-in { from { opacity: 0; transform: scale(0.6); } }
+@keyframes pub-logo { from { clip-path: inset(100% 0 0 0); transform: translateY(12px); } to { clip-path: inset(0); transform: none; } }
+@keyframes pub-kicker { from { opacity: 0; letter-spacing: 0.6em; } }
+@keyframes pub-char { from { transform: translateY(115%); } }
+/* Le masque et la barre partagent la même course (de -10 % à 110 % de la
+   largeur) et la même courbe : la barre reste collée au bord du masque. */
+@keyframes pub-wipe {
+  from { clip-path: inset(-80% 110% -80% -10%); }
+  to { clip-path: inset(-80% -10% -80% -10%); }
+}
+@keyframes pub-wipe-bar { from { transform: translateX(-110%); } to { transform: translateX(10%); } }
+@keyframes pub-fade-out { to { opacity: 0; } }
+@keyframes pub-rise { from { opacity: 0; transform: translateY(var(--rise, 16px)); } }
+
+.intro .public-glow { animation: pub-glow-in 900ms ease-out both; }
+.intro .public-logo { animation: pub-logo 600ms cubic-bezier(0.2, 0.7, 0.1, 1) both; }
+.intro .public-kicker { animation: pub-kicker 700ms cubic-bezier(0.2, 0.7, 0.1, 1) 350ms both; }
+.intro .hero-line1 .char {
+  animation: pub-char 550ms cubic-bezier(0.2, 0.7, 0.1, 1) both;
+  animation-delay: calc(500ms + var(--i) * 35ms);
+}
+.intro .hero-line2 { animation: pub-wipe 650ms cubic-bezier(0.65, 0, 0.35, 1) 800ms both; }
+/* Fine barre lumineuse qui suit le bord du masque, comme une machine à titrer. */
+.intro .hero-line2::after {
+  content: '';
+  position: absolute;
+  inset: -0.08em 0;
+  background: linear-gradient(90deg, transparent calc(100% - 3px), #ffd9a8 calc(100% - 3px));
+  filter: drop-shadow(0 0 6px rgba(255, 190, 120, 0.9));
+  animation:
+    pub-wipe-bar 650ms cubic-bezier(0.65, 0, 0.35, 1) 800ms both,
+    pub-fade-out 220ms ease-out 1400ms both;
+}
+.intro .public-sub { --rise: 10px; animation: pub-rise 500ms ease-out 1150ms both; }
+
+/* Le contenu monte en cascade : paragraphe, chaque bloc du formulaire, mentions. */
+.intro .public-body > :not(.entry-form),
+.intro .entry-form > * {
+  --rise: 18px;
+  animation: pub-rise 500ms cubic-bezier(0.2, 0.7, 0.1, 1) both;
+  animation-delay: calc(1200ms + var(--k, 0) * 55ms);
+}
+.intro .public-body > :nth-child(1) { --k: 0; }
+.intro .entry-form > :nth-child(1) { --k: 1; }
+.intro .entry-form > :nth-child(2) { --k: 2; }
+.intro .entry-form > :nth-child(3) { --k: 3; }
+.intro .entry-form > :nth-child(4) { --k: 4; }
+.intro .entry-form > :nth-child(5) { --k: 5; }
+.intro .entry-form > :nth-child(6) { --k: 6; }
+.intro .public-body > .legal { --k: 7; }
+
+/* Filet de sécurité : la classe n'est déjà pas posée dans ce cas (motion.ts). */
+@media (prefers-reduced-motion: reduce) {
+  .intro *, .intro *::after, .outro *, .outro *::after { animation: none !important; }
+}
