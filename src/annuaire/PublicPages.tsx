@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { api, ApiError, frDate, type EntryFields, type MyEntry, type PublicEvent } from './api'
 import { CONSENT_VERSION, selfUrl } from './config'
 import EntryForm from './EntryForm'
@@ -6,6 +6,7 @@ import Legal from './Legal'
 import { LOGO_14_AVENUE_LIGHT } from '../logo'
 import { useSequence } from './motion'
 import SplitText from './SplitText'
+import Embers, { type EmbersHandle } from './Embers'
 import './public.css'
 
 /** Titre de la page : la marque de la soirée, le remerciement, ou un titre simple. */
@@ -44,8 +45,20 @@ type ShellProps = { kicker: string; hero: Hero; children?: ReactNode }
 
 // Une page par état : changer d'état remonte la page, et rejoue la séquence
 // qui lui correspond (ouverture de marque, remerciement), jamais l'autre.
+// Les braises vivent au-dessus de ces états : elles persistent d'une page à
+// l'autre, et c'est d'elles que part la gerbe du remerciement.
 function Shell(props: ShellProps) {
-  return <ShellPage key={props.hero.kind} {...props} />
+  const embers = useRef<EmbersHandle>(null)
+  useEffect(() => {
+    if (props.hero.kind === 'thanks') embers.current?.burst()
+  }, [props.hero.kind])
+
+  return (
+    <>
+      <Embers ref={embers} />
+      <ShellPage key={props.hero.kind} {...props} />
+    </>
+  )
 }
 
 function ShellPage({ kicker, hero, children }: ShellProps) {

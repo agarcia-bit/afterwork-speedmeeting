@@ -249,3 +249,24 @@
 @media (prefers-reduced-motion: reduce) {
   .intro *, .intro *::after, .outro *, .outro *::after { animation: none !important; }
 }
+
+/* ---------- Braises et halo ---------- */
+
+.embers {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  animation: pub-embers-in 1200ms ease-out both;
+}
+@keyframes pub-embers-in { from { opacity: 0; } }
+
+/* Le halo respire lentement, une fois l'ouverture terminée. */
+.public-glow { animation: pub-breathe 6s ease-in-out infinite; }
+@keyframes pub-breathe { 50% { opacity: 0.82; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .public-glow { animation: none; }
+}
