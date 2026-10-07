@@ -40,17 +40,29 @@ function HeroTitle({ hero }: { hero: Hero }) {
   return null
 }
 
-/** Attente du serveur : le logo seul respire ; un mot si ça traîne. */
+/**
+ * Attente du serveur. La réponse arrive le plus souvent en moins d'une
+ * seconde : afficher le logo tout de suite le ferait apparaître puis
+ * disparaître juste avant l'ouverture animée. On n'affiche donc rien au
+ * début ; le logo n'apparaît que si l'attente se prolonge, puis un mot si
+ * elle traîne vraiment.
+ */
 function LoadingScreen() {
-  const [slow, setSlow] = useState(false)
+  const [stage, setStage] = useState<'silent' | 'logo' | 'slow'>('silent')
   useEffect(() => {
-    const timer = window.setTimeout(() => setSlow(true), 4000)
-    return () => window.clearTimeout(timer)
+    const logo = window.setTimeout(() => setStage('logo'), 800)
+    const slow = window.setTimeout(() => setStage('slow'), 4000)
+    return () => {
+      window.clearTimeout(logo)
+      window.clearTimeout(slow)
+    }
   }, [])
   return (
-    <div className="public vitrine public-loading" role="status" aria-live="polite">
-      <img className="public-logo" src={LOGO_14_AVENUE_LIGHT} alt="Le 14 Avenue — chargement" />
-      {slow && <p className="public-text loading-slow">Connexion un peu lente…</p>}
+    <div className="public vitrine public-loading" role="status" aria-live="polite" aria-label="Chargement">
+      {stage !== 'silent' && (
+        <img className="public-logo" src={LOGO_14_AVENUE_LIGHT} alt="Le 14 Avenue — chargement" />
+      )}
+      {stage === 'slow' && <p className="public-text loading-slow">Connexion un peu lente…</p>}
     </div>
   )
 }

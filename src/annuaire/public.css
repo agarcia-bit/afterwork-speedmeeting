@@ -409,7 +409,12 @@
   gap: 18px;
   padding: 0 18px;
 }
-.public-loading .public-logo { width: 84px; margin: 0; animation: pub-loading 1800ms ease-in-out infinite; }
+.public-loading .public-logo {
+  width: 84px;
+  margin: 0;
+  animation: pub-fade-in 500ms ease-out both, pub-loading 1800ms ease-in-out 500ms infinite;
+}
+@keyframes pub-fade-in { from { opacity: 0; } }
 @keyframes pub-loading { 50% { opacity: 0.4; } }
 .loading-slow { --rise: 8px; animation: pub-rise 400ms ease-out both; }
 
