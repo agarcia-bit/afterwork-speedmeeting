@@ -39,7 +39,7 @@ function HeroTitle({ hero }: { hero: Hero }) {
 }
 
 /** Durées des séquences, alignées sur les délais de public.css. */
-const SEQUENCE_MS = { brand: 2300, thanks: 2400 }
+const SEQUENCE_MS = { brand: 2300, thanks: 3700 }
 
 type ShellProps = {
   kicker: string
@@ -141,23 +141,55 @@ function ErrorBanner({ error }: { error: { text: string; at: number } | null }) 
 
 function CopyLink({ url }: { url: string }) {
   const [copied, setCopied] = useState(false)
+  const field = useRef<HTMLInputElement>(null)
+
+  // Presse-papiers moderne d'abord ; sinon copie classique depuis le champ ;
+  // à défaut, le lien reste sélectionné pour une copie manuelle.
+  async function copy() {
+    let ok = false
+    try {
+      await navigator.clipboard.writeText(url)
+      ok = true
+    } catch {
+      field.current?.select()
+      try {
+        ok = document.execCommand('copy')
+      } catch {
+        ok = false
+      }
+    }
+    if (ok) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    } else {
+      field.current?.select()
+    }
+  }
+
   return (
     <div className="copy-link">
-      <input readOnly value={url} onFocus={(e) => e.currentTarget.select()} aria-label="Lien personnel" />
+      <input
+        ref={field}
+        readOnly
+        value={url}
+        onFocus={(e) => e.currentTarget.select()}
+        aria-label="Lien personnel"
+      />
       <button
-        className="btn btn-primary"
+        className={`btn btn-primary copy-btn${copied ? ' is-copied' : ''}`}
         type="button"
-        onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(url)
-            setCopied(true)
-            setTimeout(() => setCopied(false), 1800)
-          } catch {
-            // Pas d'accès au presse-papiers : le champ reste sélectionnable.
-          }
-        }}
+        onClick={copy}
       >
-        {copied ? 'Copié !' : 'Copier'}
+        {copied ? (
+          <>
+            <svg className="copy-check" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 12.5l4.5 4.5L19 7.5" />
+            </svg>
+            Copié !
+          </>
+        ) : (
+          'Copier'
+        )}
       </button>
     </div>
   )

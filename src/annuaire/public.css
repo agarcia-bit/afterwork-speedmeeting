@@ -217,12 +217,15 @@
 }
 .intro .hero-line2 { animation: pub-wipe 650ms cubic-bezier(0.65, 0, 0.35, 1) 800ms both; }
 /* Fine barre lumineuse qui suit le bord du masque, comme une machine à titrer. */
-.intro .hero-line2::after {
+.intro .hero-line2::after,
+.outro .hero-line2::after {
   content: '';
   position: absolute;
   inset: -0.08em 0;
   background: linear-gradient(90deg, transparent calc(100% - 3px), #ffd9a8 calc(100% - 3px));
   filter: drop-shadow(0 0 6px rgba(255, 190, 120, 0.9));
+}
+.intro .hero-line2::after {
   animation:
     pub-wipe-bar 650ms cubic-bezier(0.65, 0, 0.35, 1) 800ms both,
     pub-fade-out 220ms ease-out 1400ms both;
@@ -347,4 +350,50 @@
 
 @media (prefers-reduced-motion: reduce) {
   .vitrine .form-submit.shine::after, .vitrine .public-body > .banner.bad, .vitrine .legal[open] dl { animation: none; }
+}
+
+/* ---------- Remerciement ---------- */
+/* Une gerbe de braises jaillit (Embers), MERCI sort du flou, « d'avoir
+   participé ! » est balayé comme SPEED MEETING, puis la carte du lien
+   personnel monte et son filet pulse pour qu'on pense à le copier. */
+
+@keyframes pub-merci { from { opacity: 0; transform: scale(1.3); filter: blur(14px); } }
+@keyframes pub-pulse { 50% { filter: brightness(1.7); box-shadow: 0 0 14px 4px rgba(245, 160, 75, 0.85); } }
+
+.outro .hero-line1 { animation: pub-merci 700ms cubic-bezier(0.2, 0.7, 0.1, 1) 100ms both; }
+.outro .hero-line2 { animation: pub-wipe 600ms cubic-bezier(0.65, 0, 0.35, 1) 600ms both; }
+.outro .hero-line2::after {
+  animation:
+    pub-wipe-bar 600ms cubic-bezier(0.65, 0, 0.35, 1) 600ms both,
+    pub-fade-out 220ms ease-out 1150ms both;
+}
+.outro .public-body > .public-text { --rise: 12px; animation: pub-rise 450ms ease-out 1000ms both; }
+.outro .public-card { --rise: 24px; animation: pub-rise 550ms cubic-bezier(0.2, 0.7, 0.1, 1) 1200ms both; }
+.outro .public-card::before { animation: pub-pulse 600ms ease-in-out 1800ms 3; }
+
+/* Bouton « Copier » : confirmation verte, coche dessinée. */
+.vitrine .copy-btn { min-width: 108px; transition: background 200ms ease, border-color 200ms ease, color 200ms ease; }
+.vitrine .copy-btn.is-copied {
+  background: linear-gradient(180deg, #7bd69a, var(--ok));
+  border-color: var(--ok);
+  color: #0d1f13;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) inset, 0 8px 20px -10px rgba(87, 184, 122, 0.85);
+}
+.vitrine .copy-check {
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  vertical-align: -2px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 22;
+  animation: pub-draw 320ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+@keyframes pub-draw { from { stroke-dashoffset: 22; } to { stroke-dashoffset: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .vitrine .copy-check { animation: none; }
 }

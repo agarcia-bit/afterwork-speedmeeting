@@ -37,19 +37,21 @@ const Embers = forwardRef<EmbersHandle>(function Embers(_, ref) {
     burst() {
       if (disabled.current) return
       const { w, h } = size.current
+      // Une fontaine qui monte jusqu'au titre, depuis le bas de l'écran.
+      const reach = Math.sqrt(h) * 0.5
       for (let i = 0; i < 80; i++) {
-        const angle = rand(-Math.PI * 0.85, -Math.PI * 0.15)
-        const speed = rand(3, 8.5)
+        const angle = rand(-Math.PI * 0.72, -Math.PI * 0.28)
+        const speed = rand(0.55, 1.15) * reach
         sparks.current.push({
-          x: w / 2 + rand(-w * 0.12, w * 0.12),
-          y: h + 6,
+          x: w / 2 + rand(-w * 0.1, w * 0.1),
+          y: h + 4,
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed,
           r: rand(1, 2.8),
           alpha: rand(0.7, 1),
           phase: rand(0, Math.PI * 2),
           hue: rand(22, 44),
-          life: rand(70, 130),
+          life: rand(90, 160),
         })
       }
     },
@@ -130,7 +132,7 @@ const Embers = forwardRef<EmbersHandle>(function Embers(_, ref) {
       const alive: Ember[] = []
       for (const s of sparks.current) {
         s.vx *= 0.985
-        s.vy = s.vy * 0.985 + 0.06 * dt
+        s.vy = s.vy * 0.985 + 0.045 * dt
         s.x += s.vx * dt
         s.y += s.vy * dt
         s.life! -= dt
