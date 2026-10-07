@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { api, ApiError, frDate, type EntryFields, type MyEntry, type PublicEvent } from './api'
 import { CONSENT_VERSION, selfUrl } from './config'
-import EntryForm from './EntryForm'
+import EntryForm, { type InvalidField } from './EntryForm'
 import Legal from './Legal'
 import { LOGO_14_AVENUE_LIGHT } from '../logo'
 import { useSequence } from './motion'
@@ -41,7 +41,13 @@ function HeroTitle({ hero }: { hero: Hero }) {
 /** Durées des séquences, alignées sur les délais de public.css. */
 const SEQUENCE_MS = { brand: 2300, thanks: 2400 }
 
-type ShellProps = { kicker: string; hero: Hero; children?: ReactNode }
+type ShellProps = {
+  kicker: string
+  hero: Hero
+  /** Mise en scène réservée à la page d'inscription : braises, halo, animations. */
+  vitrine?: boolean
+  children?: ReactNode
+}
 
 // Une page par état : changer d'état remonte la page, et rejoue la séquence
 // qui lui correspond (ouverture de marque, remerciement), jamais l'autre.
@@ -55,13 +61,13 @@ function Shell(props: ShellProps) {
 
   return (
     <>
-      <Embers ref={embers} />
+      {props.vitrine && <Embers ref={embers} />}
       <ShellPage key={props.hero.kind} {...props} />
     </>
   )
 }
 
-function ShellPage({ kicker, hero, children }: ShellProps) {
+function ShellPage({ kicker, hero, vitrine, children }: ShellProps) {
   const playing = useSequence(
     hero.kind === 'brand'
       ? { duration: SEQUENCE_MS.brand, once: 'annuaire-intro-vue' }
@@ -72,8 +78,8 @@ function ShellPage({ kicker, hero, children }: ShellProps) {
   const sequence = playing ? (hero.kind === 'brand' ? ' intro' : ' outro') : ''
 
   return (
-    <div className={`public${sequence}`}>
-      <div className="public-glow" aria-hidden="true" />
+    <div className={`public${vitrine ? ' vitrine' : ''}${sequence}`}>
+      {vitrine && <div className="public-glow" aria-hidden="true" />}
       <header className="public-head">
         <img className="public-logo" src={LOGO_14_AVENUE_LIGHT} alt="Le 14 Avenue" />
         <p className="public-kicker">{kicker}</p>
@@ -92,6 +98,45 @@ function eventKicker(title: string, date: string) {
 
 function errorText(err: unknown) {
   return err instanceof ApiError ? err.message : 'Une erreur est survenue. Réessayez dans un instant.'
+}
+
+/** Champ à signaler pour une erreur renvoyée par la base, s'il y en a un. */
+function fieldFor(err: unknown): InvalidField | null {
+  if (!(err instanceof ApiError)) return null
+  switch (err.code) {
+    case 'entries_email':
+    case 'deja_inscrit':
+      return 'email'
+    case 'entries_names':
+      return 'names'
+    case 'entries_activity':
+      return 'activity'
+    case 'entries_phone':
+      return 'phone'
+    default:
+      return null
+  }
+}
+
+/** Erreur de formulaire : texte, champ concerné, et horodatage pour rejouer
+ *  la secousse même quand le message ne change pas. */
+function useFormError() {
+  const [error, setError] = useState<{ text: string; field: InvalidField | null; at: number } | null>(
+    null,
+  )
+  return {
+    error,
+    report: (err: unknown) => setError({ text: errorText(err), field: fieldFor(err), at: Date.now() }),
+    clear: () => setError(null),
+  }
+}
+
+function ErrorBanner({ error }: { error: { text: string; at: number } | null }) {
+  return error ? (
+    <div key={error.at} className="banner bad" role="alert">
+      {error.text}
+    </div>
+  ) : null
 }
 
 function CopyLink({ url }: { url: string }) {
@@ -124,7 +169,7 @@ function CopyLink({ url }: { url: string }) {
 export function SignupPage({ slug }: { slug: string }) {
   const [event, setEvent] = useState<PublicEvent | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const { error, report, clear } = useFormError()
   const [busy, setBusy] = useState(false)
   const [token, setToken] = useState<string | null>(null)
 
@@ -134,14 +179,14 @@ export function SignupPage({ slug }: { slug: string }) {
 
   if (loadError) {
     return (
-      <Shell kicker="Annuaire des participants" hero={{ kind: 'plain', title: 'Lien introuvable' }}>
+      <Shell vitrine kicker="Annuaire des participants" hero={{ kind: 'plain', title: 'Lien introuvable' }}>
         <p className="public-text">{loadError}</p>
       </Shell>
     )
   }
   if (!event) {
     return (
-      <Shell kicker="Annuaire des participants" hero={{ kind: 'plain', title: 'Chargement…' }}>
+      <Shell vitrine kicker="Annuaire des participants" hero={{ kind: 'plain', title: 'Chargement…' }}>
         <p className="public-text">Un instant.</p>
       </Shell>
     )
@@ -151,7 +196,7 @@ export function SignupPage({ slug }: { slug: string }) {
 
   if (token) {
     return (
-      <Shell kicker={kicker} hero={{ kind: 'thanks' }}>
+      <Shell vitrine kicker={kicker} hero={{ kind: 'thanks' }}>
         <p className="public-text">
           Vous figurerez dans l'annuaire des participants, envoyé après la soirée à tous ceux qui
           ont rempli ce formulaire.
@@ -170,7 +215,7 @@ export function SignupPage({ slug }: { slug: string }) {
 
   if (!event.is_open) {
     return (
-      <Shell kicker={kicker} hero={{ kind: 'brand', subtitle: 'Le formulaire ouvrira bientôt' }}>
+      <Shell vitrine kicker={kicker} hero={{ kind: 'brand', subtitle: 'Le formulaire ouvrira bientôt' }}>
         <p className="public-text">
           Le formulaire de l'annuaire n'est pas ouvert pour le moment. Revenez un peu plus tard, ou
           rapprochez-vous des organisateurs.
@@ -181,26 +226,33 @@ export function SignupPage({ slug }: { slug: string }) {
 
   async function submit(fields: EntryFields) {
     setBusy(true)
-    setError(null)
+    clear()
     try {
       const { token } = await api.submit(slug, fields, CONSENT_VERSION)
       setToken(token)
       window.scrollTo({ top: 0 })
     } catch (err) {
-      setError(errorText(err))
+      report(err)
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <Shell kicker={kicker} hero={{ kind: 'brand', subtitle: "Rejoignez l'annuaire des participants" }}>
+    <Shell vitrine kicker={kicker} hero={{ kind: 'brand', subtitle: "Rejoignez l'annuaire des participants" }}>
       <p className="public-text">
         Après la soirée, nous enverrons à chaque participant qui a rempli ce formulaire l'annuaire
         des présents, pour garder le contact. Vous choisissez ce qui y figure.
       </p>
-      {error && <div className="banner bad">{error}</div>}
-      <EntryForm mode="create" submitLabel="Rejoindre l'annuaire" busy={busy} onSubmit={submit} />
+      <ErrorBanner error={error} />
+      <EntryForm
+        vitrine
+        mode="create"
+        submitLabel="Rejoindre l'annuaire"
+        busy={busy}
+        onSubmit={submit}
+        invalid={error?.field ? { field: error.field, at: error.at } : null}
+      />
       <Legal
         title={event.title}
         eventDate={event.event_date}
@@ -218,7 +270,7 @@ export function SignupPage({ slug }: { slug: string }) {
 export function MyEntryPage({ token }: { token: string }) {
   const [entry, setEntry] = useState<MyEntry | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const { error, report, clear } = useFormError()
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -257,14 +309,14 @@ export function MyEntryPage({ token }: { token: string }) {
 
   async function save(fields: EntryFields) {
     setBusy(true)
-    setError(null)
+    clear()
     setNotice(null)
     try {
       await api.updateMe(token, fields, CONSENT_VERSION)
       setNotice('Vos informations sont à jour.')
       window.scrollTo({ top: 0 })
     } catch (err) {
-      setError(errorText(err))
+      report(err)
     } finally {
       setBusy(false)
     }
@@ -272,25 +324,25 @@ export function MyEntryPage({ token }: { token: string }) {
 
   async function remove() {
     setBusy(true)
-    setError(null)
+    clear()
     try {
       await api.deleteMe(token)
       setDeleted(true)
     } catch (err) {
-      setError(errorText(err))
+      report(err)
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <Shell kicker={eventKicker(ev.title, ev.event_date)} hero={{ kind: 'plain', title: 'Vos informations' }}>
+    <Shell kicker={`${ev.title} · ${frDate(ev.event_date)}`} hero={{ kind: 'plain', title: 'Vos informations' }}>
       <p className="public-text">
         Inscription du {frDate(entry.consented_at)}. Modifiez ce qui figure dans l'annuaire, ou
         retirez votre consentement.
       </p>
       {notice && <div className="banner ok">{notice}</div>}
-      {error && <div className="banner bad">{error}</div>}
+      <ErrorBanner error={error} />
       <EntryForm
         mode="edit"
         initial={entry}

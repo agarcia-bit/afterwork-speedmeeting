@@ -117,7 +117,7 @@
 
 /* ---------- Titre de marque ---------- */
 
-.public-logo { width: 64px; }
+.vitrine .public-logo { width: 64px; }
 
 .hero {
   margin: 0;
@@ -168,7 +168,7 @@
    sa place finale : la page reste lisible si l'animation ne joue pas, et
    « réduire les animations » revient simplement à ne pas les poser. */
 
-.public { position: relative; z-index: 1; }
+.vitrine { position: relative; z-index: 1; }
 
 /* Halo de lumière de bar derrière le titre. */
 .public-glow {
@@ -269,4 +269,82 @@
 
 @media (prefers-reduced-motion: reduce) {
   .public-glow { animation: none; }
+}
+
+/* ---------- Micro-interactions du formulaire ---------- */
+
+.vitrine .form-field > span { transition: color 150ms ease; }
+.vitrine .form-field:focus-within > span { color: #f6efe6; }
+.vitrine .form-field input { transition: border-color 150ms ease, box-shadow 150ms ease; }
+.vitrine .form-field input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(232, 134, 42, 0.18); }
+.vitrine .form-field.invalid > span { color: #f08a6a; }
+.vitrine .form-field.invalid input { border-color: var(--danger); box-shadow: 0 0 0 4px rgba(228, 87, 46, 0.16); }
+
+/* Cases de consentement : la vraie case est masquée, la coche se dessine. */
+.vitrine .consent { position: relative; transition: background-color 200ms ease, border-color 200ms ease; }
+.vitrine .consent-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.vitrine .consent-box {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border-radius: 7px;
+  border: 1.5px solid #5a4c3e;
+  background: var(--bg);
+  transition: background-color 200ms ease, border-color 200ms ease, transform 120ms ease;
+}
+.vitrine .consent:active .consent-box { transform: scale(0.92); }
+.vitrine .consent-box svg { width: 16px; height: 16px; fill: none; stroke: #1a1208; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.vitrine .consent-box path { stroke-dasharray: 22; stroke-dashoffset: 22; transition: stroke-dashoffset 150ms ease-in; }
+.vitrine .consent-input:focus-visible + .consent-box { outline: 2px solid var(--accent-soft); outline-offset: 3px; }
+.vitrine .consent.is-checked { background: rgba(232, 134, 42, 0.08); border-color: rgba(232, 134, 42, 0.55); }
+.vitrine .consent.is-checked .consent-box { background: var(--accent); border-color: var(--accent); }
+.vitrine .consent.is-checked .consent-box path {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 320ms cubic-bezier(0.65, 0, 0.35, 1) 60ms;
+}
+.vitrine .consent.is-locked { cursor: default; }
+.vitrine .consent.is-locked .consent-box { opacity: 0.75; }
+
+/* Bouton : un reflet le traverse une fois, quand il devient utilisable. */
+.vitrine .form-submit { position: relative; overflow: hidden; transition: transform 80ms ease, filter 150ms ease; }
+.vitrine .form-submit:active:not(:disabled) { transform: scale(0.98); }
+.vitrine .form-submit.shine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.5) 50%, transparent 70%);
+  animation: pub-shine 1200ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+@keyframes pub-shine { from { transform: translateX(-120%); } to { transform: translateX(120%); } }
+
+/* Erreur : une courte secousse attire l'œil sur le message. */
+.vitrine .public-body > .banner.bad { animation: pub-shake 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+@keyframes pub-shake {
+  20% { transform: translateX(-7px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(2px); }
+}
+
+/* Mentions : chevron et dépliement en douceur. */
+.vitrine .legal summary { display: flex; align-items: center; justify-content: space-between; list-style: none; }
+.vitrine .legal summary::-webkit-details-marker { display: none; }
+.vitrine .legal summary::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-3px) rotate(45deg);
+  transition: transform 250ms ease;
+}
+.vitrine .legal[open] summary::after { transform: translateY(2px) rotate(225deg); }
+.vitrine .legal[open] dl { --rise: 8px; animation: pub-rise 320ms cubic-bezier(0.2, 0.7, 0.1, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vitrine .form-submit.shine::after, .vitrine .public-body > .banner.bad, .vitrine .legal[open] dl { animation: none; }
 }
