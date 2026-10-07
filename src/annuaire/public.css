@@ -114,3 +114,50 @@
 .legal dt { color: var(--text); font-weight: 600; }
 .legal dd { margin: 2px 0 0; }
 .legal a { color: var(--accent-soft); }
+
+/* ---------- Titre de marque ---------- */
+
+.public-logo { width: 64px; }
+
+.hero {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 0.86;
+  text-transform: uppercase;
+}
+.hero-line1 {
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: clamp(48px, 17.5vw, 104px);
+  letter-spacing: 0.015em;
+  color: #fbf4ea;
+}
+.hero-line2 {
+  margin-top: 0.08em;
+  font-family: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(38px, 13.5vw, 74px);
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  text-shadow: 0 0 28px rgba(232, 134, 42, 0.35);
+}
+.public-sub {
+  margin: 20px 0 0;
+  font-family: var(--font-title);
+  font-size: clamp(15px, 4.2vw, 19px);
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #e9dccb;
+  text-wrap: balance;
+}
+
+.hero-thanks .hero-line1 { font-size: clamp(76px, 27vw, 148px); font-weight: 700; }
+.hero-thanks .hero-line2 {
+  font-size: clamp(30px, 9.5vw, 54px);
+  text-transform: none;
+  letter-spacing: 0.01em;
+}

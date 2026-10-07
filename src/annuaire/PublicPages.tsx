@@ -6,17 +6,52 @@ import Legal from './Legal'
 import { LOGO_14_AVENUE_LIGHT } from '../logo'
 import './public.css'
 
-function Shell({ kicker, title, children }: { kicker: string; title: string; children: ReactNode }) {
+/** Titre de la page : la marque de la soirée, le remerciement, ou un titre simple. */
+type Hero =
+  | { kind: 'brand'; subtitle: string }
+  | { kind: 'thanks' }
+  | { kind: 'plain'; title: string }
+
+function HeroTitle({ hero }: { hero: Hero }) {
+  if (hero.kind === 'brand') {
+    return (
+      <>
+        <h1 className="hero" aria-label="Afterwork Speed meeting">
+          <span className="hero-line1">Afterwork</span>
+          <span className="hero-line2">Speed meeting</span>
+        </h1>
+        <p className="public-sub">{hero.subtitle}</p>
+      </>
+    )
+  }
+  if (hero.kind === 'thanks') {
+    return (
+      <h1 className="hero hero-thanks" aria-label="Merci d'avoir participé !">
+        <span className="hero-line1">Merci</span>
+        <span className="hero-line2">d'avoir participé !</span>
+      </h1>
+    )
+  }
+  return <h1 className="public-title">{hero.title}</h1>
+}
+
+function Shell({ kicker, hero, children }: { kicker: string; hero: Hero; children?: ReactNode }) {
   return (
     <div className="public">
       <header className="public-head">
         <img className="public-logo" src={LOGO_14_AVENUE_LIGHT} alt="Le 14 Avenue" />
         <p className="public-kicker">{kicker}</p>
-        <h1 className="public-title">{title}</h1>
+        <HeroTitle hero={hero} />
       </header>
-      <main className="public-body">{children}</main>
+      {children && <main className="public-body">{children}</main>}
     </div>
   )
+}
+
+/** « INTERASSO · 6 octobre 2026 » : le titre géant dit déjà « Afterwork ». */
+function eventKicker(title: string, date: string) {
+  const short = title.replace(/^\s*afterwork\s*/i, '').trim() || title
+  return `${short} · ${frDate(date)}`
 }
 
 function errorText(err: unknown) {
@@ -63,24 +98,24 @@ export function SignupPage({ slug }: { slug: string }) {
 
   if (loadError) {
     return (
-      <Shell kicker="Annuaire des participants" title="Lien introuvable">
+      <Shell kicker="Annuaire des participants" hero={{ kind: 'plain', title: 'Lien introuvable' }}>
         <p className="public-text">{loadError}</p>
       </Shell>
     )
   }
   if (!event) {
     return (
-      <Shell kicker="Annuaire des participants" title="Chargement…">
+      <Shell kicker="Annuaire des participants" hero={{ kind: 'plain', title: 'Chargement…' }}>
         <p className="public-text">Un instant.</p>
       </Shell>
     )
   }
 
-  const kicker = `${event.title} · ${frDate(event.event_date)}`
+  const kicker = eventKicker(event.title, event.event_date)
 
   if (token) {
     return (
-      <Shell kicker={kicker} title="C'est noté, merci !">
+      <Shell kicker={kicker} hero={{ kind: 'thanks' }}>
         <p className="public-text">
           Vous figurerez dans l'annuaire des participants, envoyé après la soirée à tous ceux qui
           ont rempli ce formulaire.
@@ -99,7 +134,7 @@ export function SignupPage({ slug }: { slug: string }) {
 
   if (!event.is_open) {
     return (
-      <Shell kicker={kicker} title="Formulaire fermé">
+      <Shell kicker={kicker} hero={{ kind: 'brand', subtitle: 'Le formulaire ouvrira bientôt' }}>
         <p className="public-text">
           Le formulaire de l'annuaire n'est pas ouvert pour le moment. Revenez un peu plus tard, ou
           rapprochez-vous des organisateurs.
@@ -123,7 +158,7 @@ export function SignupPage({ slug }: { slug: string }) {
   }
 
   return (
-    <Shell kicker={kicker} title="Rejoignez l'annuaire des participants">
+    <Shell kicker={kicker} hero={{ kind: 'brand', subtitle: "Rejoignez l'annuaire des participants" }}>
       <p className="public-text">
         Après la soirée, nous enverrons à chaque participant qui a rempli ce formulaire l'annuaire
         des présents, pour garder le contact. Vous choisissez ce qui y figure.
@@ -159,7 +194,7 @@ export function MyEntryPage({ token }: { token: string }) {
 
   if (deleted) {
     return (
-      <Shell kicker="Annuaire des participants" title="Inscription supprimée">
+      <Shell kicker="Annuaire des participants" hero={{ kind: 'plain', title: 'Inscription supprimée' }}>
         <p className="public-text">
           Vos informations ont été effacées et vous ne figurerez plus dans l'annuaire. Les
           exemplaires déjà envoyés ne peuvent pas être rappelés.
@@ -169,14 +204,14 @@ export function MyEntryPage({ token }: { token: string }) {
   }
   if (loadError) {
     return (
-      <Shell kicker="Annuaire des participants" title="Lien introuvable">
+      <Shell kicker="Annuaire des participants" hero={{ kind: 'plain', title: 'Lien introuvable' }}>
         <p className="public-text">{loadError}</p>
       </Shell>
     )
   }
   if (!entry) {
     return (
-      <Shell kicker="Annuaire des participants" title="Chargement…">
+      <Shell kicker="Annuaire des participants" hero={{ kind: 'plain', title: 'Chargement…' }}>
         <p className="public-text">Un instant.</p>
       </Shell>
     )
@@ -213,7 +248,7 @@ export function MyEntryPage({ token }: { token: string }) {
   }
 
   return (
-    <Shell kicker={`${ev.title} · ${frDate(ev.event_date)}`} title="Vos informations">
+    <Shell kicker={eventKicker(ev.title, ev.event_date)} hero={{ kind: 'plain', title: 'Vos informations' }}>
       <p className="public-text">
         Inscription du {frDate(entry.consented_at)}. Modifiez ce qui figure dans l'annuaire, ou
         retirez votre consentement.
