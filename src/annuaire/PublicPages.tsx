@@ -261,8 +261,8 @@ export function SignupPage({ slug }: { slug: string }) {
     return (
       <Shell vitrine kicker={kicker} hero={{ kind: 'thanks' }}>
         <p className="public-text">
-          Vous figurerez dans l'annuaire des participants, envoyé après la soirée à tous ceux qui
-          ont rempli ce formulaire.
+          Vous recevrez par mail l'annuaire des participants après la soirée, et vous y figurerez
+          avec ce que vous avez choisi de partager.
         </p>
         <div className="public-card">
           <h2>Gardez ce lien personnel</h2>
@@ -280,8 +280,8 @@ export function SignupPage({ slug }: { slug: string }) {
     return (
       <Shell vitrine kicker={kicker} hero={{ kind: 'brand', subtitle: 'Le formulaire ouvrira bientôt' }}>
         <p className="public-text">
-          Le formulaire de l'annuaire n'est pas ouvert pour le moment. Revenez un peu plus tard, ou
-          rapprochez-vous des organisateurs.
+          Le formulaire pour recevoir les contacts de la soirée n'est pas encore ouvert. Revenez un
+          peu plus tard, ou rapprochez-vous des organisateurs.
         </p>
       </Shell>
     )
@@ -302,16 +302,17 @@ export function SignupPage({ slug }: { slug: string }) {
   }
 
   return (
-    <Shell vitrine kicker={kicker} hero={{ kind: 'brand', subtitle: "Rejoignez l'annuaire des participants" }}>
+    <Shell vitrine kicker={kicker} hero={{ kind: 'brand', subtitle: 'Récupérez les contacts de la soirée' }}>
       <p className="public-text">
-        Après la soirée, nous enverrons à chaque participant qui a rempli ce formulaire l'annuaire
-        des présents, pour garder le contact. Vous choisissez ce qui y figure.
+        Remplissez ce formulaire et recevez par mail, après la soirée, l'annuaire de tous ceux qui
+        l'ont rempli : qui ils sont, ce qu'ils font, et comment les joindre quand ils l'acceptent.
+        Vous choisissez ce que vous partagez en retour.
       </p>
       <ErrorBanner error={error} />
       <EntryForm
         vitrine
         mode="create"
-        submitLabel="Rejoindre l'annuaire"
+        submitLabel="Recevoir les contacts"
         busy={busy}
         onSubmit={submit}
         invalid={error?.field ? { field: error.field, at: error.at } : null}
