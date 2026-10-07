@@ -41,28 +41,20 @@ function HeroTitle({ hero }: { hero: Hero }) {
 }
 
 /**
- * Attente du serveur. La réponse arrive le plus souvent en moins d'une
- * seconde : afficher le logo tout de suite le ferait apparaître puis
- * disparaître juste avant l'ouverture animée. On n'affiche donc rien au
- * début ; le logo n'apparaît que si l'attente se prolonge, puis un mot si
- * elle traîne vraiment.
+ * Attente du serveur. Rien ne s'affiche à part les braises qui s'allument :
+ * un logo montré pendant l'attente disparaissait à l'arrivée des données,
+ * juste avant l'ouverture animée, et faisait l'effet d'un clignotement. Un mot
+ * apparaît seulement si l'attente traîne vraiment.
  */
 function LoadingScreen() {
-  const [stage, setStage] = useState<'silent' | 'logo' | 'slow'>('silent')
+  const [slow, setSlow] = useState(false)
   useEffect(() => {
-    const logo = window.setTimeout(() => setStage('logo'), 800)
-    const slow = window.setTimeout(() => setStage('slow'), 4000)
-    return () => {
-      window.clearTimeout(logo)
-      window.clearTimeout(slow)
-    }
+    const timer = window.setTimeout(() => setSlow(true), 4000)
+    return () => window.clearTimeout(timer)
   }, [])
   return (
     <div className="public vitrine public-loading" role="status" aria-live="polite" aria-label="Chargement">
-      {stage !== 'silent' && (
-        <img className="public-logo" src={LOGO_14_AVENUE_LIGHT} alt="Le 14 Avenue — chargement" />
-      )}
-      {stage === 'slow' && <p className="public-text loading-slow">Connexion un peu lente…</p>}
+      {slow && <p className="public-text loading-slow">Connexion un peu lente…</p>}
     </div>
   )
 }
@@ -119,6 +111,14 @@ function ContentPage({ kicker, hero, vitrine, children }: ShellProps) {
         <HeroTitle hero={hero} />
       </header>
       {children && <main className="public-body">{children}</main>}
+      {vitrine && (
+        <footer className="public-credit">
+          par{' '}
+          <a href="https://www.agalumy.fr" target="_blank" rel="noopener">
+            Agalumy
+          </a>
+        </footer>
+      )}
     </div>
   )
 }
@@ -127,6 +127,21 @@ function ContentPage({ kicker, hero, vitrine, children }: ShellProps) {
 function eventKicker(title: string, date: string) {
   const short = title.replace(/^\s*afterwork\s*/i, '').trim() || title
   return `${short} · ${frDate(date)}`
+}
+
+// La requête de la soirée part dès le chargement du script, sans attendre
+// le premier rendu : chaque milliseconde gagnée raccourcit l'attente.
+const eventRequests = new Map<string, Promise<PublicEvent>>()
+
+export function prefetchEvent(slug: string): Promise<PublicEvent> {
+  let request = eventRequests.get(slug)
+  if (!request) {
+    request = api.event(slug)
+    // Évite un avertissement « promesse rejetée non gérée » avant le rendu.
+    request.catch(() => {})
+    eventRequests.set(slug, request)
+  }
+  return request
 }
 
 function errorText(err: unknown) {
@@ -239,7 +254,7 @@ export function SignupPage({ slug }: { slug: string }) {
   const [token, setToken] = useState<string | null>(null)
 
   useEffect(() => {
-    api.event(slug).then(setEvent, (err) => setLoadError(errorText(err)))
+    prefetchEvent(slug).then(setEvent, (err) => setLoadError(errorText(err)))
   }, [slug])
 
   if (loadError) {

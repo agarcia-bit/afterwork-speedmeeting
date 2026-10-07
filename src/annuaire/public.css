@@ -409,15 +409,30 @@
   gap: 18px;
   padding: 0 18px;
 }
-.public-loading .public-logo {
-  width: 84px;
-  margin: 0;
-  animation: pub-fade-in 500ms ease-out both, pub-loading 1800ms ease-in-out 500ms infinite;
-}
-@keyframes pub-fade-in { from { opacity: 0; } }
-@keyframes pub-loading { 50% { opacity: 0.4; } }
 .loading-slow { --rise: 8px; animation: pub-rise 400ms ease-out both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .public-loading .public-logo, .loading-slow { animation: none; }
+  .loading-slow { animation: none; }
 }
+
+/* ---------- Signature ---------- */
+
+.public-credit {
+  margin-top: 34px;
+  text-align: center;
+  font-family: var(--font-title);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(163, 148, 131, 0.75);
+}
+.public-credit a {
+  color: var(--accent-soft);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(245, 160, 75, 0.35);
+  padding-bottom: 1px;
+  transition: color 150ms ease, border-color 150ms ease;
+}
+.public-credit a:hover, .public-credit a:focus-visible { color: #ffd2a1; border-color: currentColor; outline: none; }
+.intro .public-credit { --rise: 10px; animation: pub-rise 500ms ease-out 1700ms both; }
+.outro .public-credit { --rise: 10px; animation: pub-rise 500ms ease-out 1500ms both; }

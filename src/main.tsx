@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
-import { MyEntryPage, SignupPage } from './annuaire/PublicPages'
+import { MyEntryPage, SignupPage, prefetchEvent } from './annuaire/PublicPages'
 import './app.css'
 
 // Deux pages publiques s'ajoutent à l'outil d'organisation :
@@ -13,7 +13,9 @@ function route() {
     return <MyEntryPage token={decodeURIComponent(parts[2])} />
   }
   if (parts[0] === 'annuaire' && parts[1]) {
-    return <SignupPage slug={decodeURIComponent(parts[1])} />
+    const slug = decodeURIComponent(parts[1])
+    prefetchEvent(slug)
+    return <SignupPage slug={slug} />
   }
   return <App />
 }
