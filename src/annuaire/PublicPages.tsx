@@ -4,6 +4,7 @@ import { CONSENT_VERSION, selfUrl } from './config'
 import EntryForm from './EntryForm'
 import Legal from './Legal'
 import { LOGO_14_AVENUE_LIGHT } from '../logo'
+import './public.css'
 
 function Shell({ kicker, title, children }: { kicker: string; title: string; children: ReactNode }) {
   return (
