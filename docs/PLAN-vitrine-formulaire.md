@@ -161,3 +161,23 @@ Chaque commit : message en français, ton des commits existants (le *pourquoi* d
 Le texte des consentements, les mentions légales et `CONSENT_VERSION` restent
 tels quels : seule la présentation change. Si une formulation devait bouger,
 incrémenter `CONSENT_VERSION` dans `config.ts`.
+
+---
+
+## Exécution — écarts au plan (7 octobre 2026)
+
+- **Périmètre réduit à la seule page d'inscription**, à la demande de
+  l'organisateur. L'espace personnel (`MyEntryPage`) garde son rendu
+  d'origine : le §6 qui lui prévoyait braises et micro-interactions n'est
+  pas appliqué. La mise en scène est portée par la classe `.vitrine` et la
+  prop `vitrine` de `Shell` et `EntryForm`.
+- **Pas de découpage en chunk séparé** (§8, point « à trancher ») : le build
+  passe par `vite-plugin-singlefile`, qui inline tout dans un seul fichier
+  HTML ; isoler la page publique imposerait deux cibles de build distinctes.
+  Reporté.
+- **Surtitre** : « INTERASSO · 6 octobre 2026 » plutôt que le titre complet,
+  pour ne pas répéter « Afterwork » juste au-dessus du titre géant.
+- **Séquence de remerciement allongée à 3,7 s** pour laisser jouer les trois
+  pulsations du filet de la carte.
+- **Bouton « Copier »** : repli ajouté (copie classique, puis sélection du
+  lien) quand le navigateur refuse l'accès au presse-papiers.
