@@ -397,3 +397,22 @@
 @media (prefers-reduced-motion: reduce) {
   .vitrine .copy-check { animation: none; }
 }
+
+/* ---------- Chargement ---------- */
+
+.public-loading {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 18px;
+  padding: 0 18px;
+}
+.public-loading .public-logo { width: 84px; margin: 0; animation: pub-loading 1800ms ease-in-out infinite; }
+@keyframes pub-loading { 50% { opacity: 0.4; } }
+.loading-slow { --rise: 8px; animation: pub-rise 400ms ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .public-loading .public-logo, .loading-slow { animation: none; }
+}

@@ -14,6 +14,7 @@ type Hero =
   | { kind: 'brand'; subtitle: string }
   | { kind: 'thanks' }
   | { kind: 'plain'; title: string }
+  | { kind: 'loading' }
 
 function HeroTitle({ hero }: { hero: Hero }) {
   if (hero.kind === 'brand') {
@@ -35,7 +36,23 @@ function HeroTitle({ hero }: { hero: Hero }) {
       </h1>
     )
   }
-  return <h1 className="public-title">{hero.title}</h1>
+  if (hero.kind === 'plain') return <h1 className="public-title">{hero.title}</h1>
+  return null
+}
+
+/** Attente du serveur : le logo seul respire ; un mot si ça traîne. */
+function LoadingScreen() {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSlow(true), 4000)
+    return () => window.clearTimeout(timer)
+  }, [])
+  return (
+    <div className="public vitrine public-loading" role="status" aria-live="polite">
+      <img className="public-logo" src={LOGO_14_AVENUE_LIGHT} alt="Le 14 Avenue — chargement" />
+      {slow && <p className="public-text loading-slow">Connexion un peu lente…</p>}
+    </div>
+  )
 }
 
 /** Durées des séquences, alignées sur les délais de public.css. */
@@ -67,7 +84,11 @@ function Shell(props: ShellProps) {
   )
 }
 
-function ShellPage({ kicker, hero, vitrine, children }: ShellProps) {
+function ShellPage(props: ShellProps) {
+  return props.hero.kind === 'loading' ? <LoadingScreen /> : <ContentPage {...props} />
+}
+
+function ContentPage({ kicker, hero, vitrine, children }: ShellProps) {
   const playing = useSequence(
     hero.kind === 'brand'
       ? { duration: SEQUENCE_MS.brand, once: 'annuaire-intro-vue' }
@@ -218,9 +239,7 @@ export function SignupPage({ slug }: { slug: string }) {
   }
   if (!event) {
     return (
-      <Shell vitrine kicker="Annuaire des participants" hero={{ kind: 'plain', title: 'Chargement…' }}>
-        <p className="public-text">Un instant.</p>
-      </Shell>
+      <Shell vitrine kicker="" hero={{ kind: 'loading' }} />
     )
   }
 
