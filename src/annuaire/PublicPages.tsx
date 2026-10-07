@@ -3,7 +3,7 @@ import { api, ApiError, frDate, type EntryFields, type MyEntry, type PublicEvent
 import { CONSENT_VERSION, selfUrl } from './config'
 import EntryForm, { type InvalidField } from './EntryForm'
 import Legal from './Legal'
-import { LOGO_14_AVENUE_LIGHT } from '../logo'
+import { AGALUMY_ICON, LOGO_14_AVENUE_LIGHT } from '../logo'
 import { useSequence } from './motion'
 import SplitText from './SplitText'
 import Embers, { type EmbersHandle } from './Embers'
@@ -111,15 +111,36 @@ function ContentPage({ kicker, hero, vitrine, children }: ShellProps) {
         <HeroTitle hero={hero} />
       </header>
       {children && <main className="public-body">{children}</main>}
-      {vitrine && (
-        <footer className="public-credit">
-          par{' '}
-          <a href="https://www.agalumy.fr" target="_blank" rel="noopener">
-            Agalumy
-          </a>
-        </footer>
-      )}
+      {vitrine && <Credit />}
     </div>
+  )
+}
+
+/** Lien suivi : permet de mesurer, côté Agalumy, les visites venues de la soirée. */
+const AGALUMY_URL =
+  'https://www.agalumy.fr/?utm_source=afterwork-interasso&utm_medium=formulaire&utm_campaign=signature'
+
+/**
+ * Signature de la page : ceux qui la remplissent viennent de la voir à
+ * l'œuvre, c'est le meilleur moment pour leur dire qui l'a faite.
+ */
+function Credit() {
+  return (
+    <footer className="public-credit">
+      <a className="credit-card" href={AGALUMY_URL} target="_blank" rel="noopener">
+        <img className="credit-logo" src={AGALUMY_ICON} alt="" width={48} height={46} />
+        <span className="credit-text">
+          <span className="credit-kicker">Par Agalumy</span>
+          <span className="credit-title">Envie d'une page comme celle-ci ?</span>
+          <span className="credit-sub">Rendre l'IA simple et utile</span>
+        </span>
+        <span className="credit-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M5 12h13M13 6l6 6-6 6" />
+          </svg>
+        </span>
+      </a>
+    </footer>
   )
 }
 

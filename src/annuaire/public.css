@@ -416,23 +416,70 @@
 }
 
 /* ---------- Signature ---------- */
+/* Petite carte cliquable aux couleurs d'Agalumy (bleu de l'emblème), qui
+   tranche juste assez sur l'orange de la soirée pour attirer l'œil. */
 
-.public-credit {
-  margin-top: 34px;
-  text-align: center;
+.public-credit { margin-top: 30px; }
+.credit-card {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 14px 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(102, 112, 255, 0.28);
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(102, 112, 255, 0.18), transparent 55%),
+    linear-gradient(135deg, rgba(10, 6, 160, 0.2), rgba(20, 16, 13, 0.4));
+  color: inherit;
+  text-decoration: none;
+  transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+}
+.credit-card:hover,
+.credit-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(102, 112, 255, 0.7);
+  box-shadow: 0 14px 34px -16px rgba(102, 112, 255, 0.8);
+  outline: none;
+}
+.credit-card:active { transform: translateY(0) scale(0.99); }
+.credit-logo {
+  width: 48px;
+  height: auto;
+  filter: drop-shadow(0 4px 14px rgba(102, 112, 255, 0.45));
+}
+.credit-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.credit-kicker {
   font-family: var(--font-title);
-  font-size: 11px;
+  font-size: 10.5px;
   letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: rgba(163, 148, 131, 0.75);
+  color: #a3aaff;
 }
-.public-credit a {
-  color: var(--accent-soft);
-  text-decoration: none;
-  border-bottom: 1px solid rgba(245, 160, 75, 0.35);
-  padding-bottom: 1px;
-  transition: color 150ms ease, border-color 150ms ease;
+.credit-title { font-size: 15px; font-weight: 600; line-height: 1.3; color: #f6efe6; }
+.credit-sub { font-size: 12.5px; line-height: 1.4; color: var(--muted); }
+.credit-arrow {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6670ff, #2a22c9);
+  box-shadow: 0 6px 16px -6px rgba(102, 112, 255, 0.85);
+  transition: transform 200ms ease;
 }
-.public-credit a:hover, .public-credit a:focus-visible { color: #ffd2a1; border-color: currentColor; outline: none; }
-.intro .public-credit { --rise: 10px; animation: pub-rise 500ms ease-out 1700ms both; }
-.outro .public-credit { --rise: 10px; animation: pub-rise 500ms ease-out 1500ms both; }
+.credit-arrow svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.credit-card:hover .credit-arrow, .credit-card:focus-visible .credit-arrow { transform: translateX(3px); }
+
+/* Une fois la carte arrivée, la flèche fait signe deux fois, puis se tient
+   tranquille : un appel, pas une distraction permanente. */
+@keyframes pub-nudge { 0%, 100% { transform: none; } 40% { transform: translateX(5px); } 60% { transform: translateX(1px); } }
+
+.intro .public-credit { --rise: 12px; animation: pub-rise 500ms ease-out 1700ms both; }
+.outro .public-credit { --rise: 12px; animation: pub-rise 500ms ease-out 1700ms both; }
+.outro .credit-arrow { animation: pub-nudge 700ms ease-in-out 2300ms 2; }
+
+@media (prefers-reduced-motion: reduce) {
+  .credit-card, .credit-arrow { transition: none; }
+  .outro .credit-arrow { animation: none; }
+}
