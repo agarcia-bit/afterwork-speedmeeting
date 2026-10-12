@@ -255,6 +255,38 @@ export default function AdminPanel({ onClose }: Props) {
       <div className="annuaire-section">
         <div className="annuaire-row">
           <h3 className="pane-title">
+            Clics vers Agalumy <span className="count">{data.clicks.total}</span>
+          </h3>
+          <span className="card-hint">
+            {data.clicks.last
+              ? `Dernier clic le ${new Date(data.clicks.last).toLocaleString('fr-FR', {
+                  day: 'numeric',
+                  month: 'long',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}`
+              : 'Aucun clic pour l’instant'}
+          </span>
+        </div>
+        <p className="card-hint">
+          Clics sur la carte « Par Agalumy » : {data.clicks.form} depuis le formulaire,{' '}
+          {data.clicks.thanks} depuis l'écran de remerciement. Seuls la date et la page sont
+          enregistrés, rien qui identifie la personne.
+        </p>
+        {data.clicks.by_day.length > 0 && (
+          <div className="click-days">
+            {data.clicks.by_day.map((d) => (
+              <span className="chip" key={d.day}>
+                {frDate(d.day)} <b>{d.n}</b>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="annuaire-section">
+        <div className="annuaire-row">
+          <h3 className="pane-title">
             Réponses <span className="count">{entries.length}</span>
           </h3>
           <span className="card-hint">

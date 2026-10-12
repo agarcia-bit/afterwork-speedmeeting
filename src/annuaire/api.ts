@@ -30,8 +30,18 @@ export interface AdminEntry extends EntryFields {
   consented_at: string
 }
 
+/** Clics sur la carte « Par Agalumy », sans rien qui identifie la personne. */
+export interface ClickStats {
+  total: number
+  form: number
+  thanks: number
+  last: string | null
+  by_day: { day: string; n: number }[]
+}
+
 export interface AdminEvent extends Omit<PublicEvent, 'claimed'> {
   entries: AdminEntry[]
+  clicks: ClickStats
 }
 
 /** Erreur métier renvoyée par la base, traduite pour l'utilisateur. */
@@ -135,6 +145,19 @@ export const api = {
 
   adminDelete: (slug: string, key: string, entryId: string) =>
     rpc<null>('annuaire_admin_delete_entry', { p_slug: slug, p_key: key, p_entry: entryId }),
+
+  /**
+   * Compte un clic vers le site d'Agalumy. Ne doit jamais gêner la visite :
+   * envoi en arrière-plan, maintenu si l'onglet change, erreurs ignorées.
+   */
+  trackClick(slug: string, page: 'form' | 'thanks') {
+    fetch(`${SUPABASE_URL}/rest/v1/rpc/annuaire_track_click`, {
+      method: 'POST',
+      keepalive: true,
+      headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_slug: slug, p_page: page }),
+    }).catch(() => {})
+  },
 
   adminPurge: (slug: string, key: string) =>
     rpc<null>('annuaire_admin_purge', { p_slug: slug, p_key: key }),

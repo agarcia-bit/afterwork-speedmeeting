@@ -67,6 +67,8 @@ type ShellProps = {
   hero: Hero
   /** Mise en scène réservée à la page d'inscription : braises, halo, animations. */
   vitrine?: boolean
+  /** Soirée concernée, pour compter les clics vers Agalumy. */
+  slug?: string
   children?: ReactNode
 }
 
@@ -92,7 +94,7 @@ function ShellPage(props: ShellProps) {
   return props.hero.kind === 'loading' ? <LoadingScreen /> : <ContentPage {...props} />
 }
 
-function ContentPage({ kicker, hero, vitrine, children }: ShellProps) {
+function ContentPage({ kicker, hero, vitrine, slug, children }: ShellProps) {
   const playing = useSequence(
     hero.kind === 'brand'
       ? { duration: SEQUENCE_MS.brand, once: 'annuaire-intro-vue' }
@@ -111,7 +113,13 @@ function ContentPage({ kicker, hero, vitrine, children }: ShellProps) {
         <HeroTitle hero={hero} />
       </header>
       {children && <main className="public-body">{children}</main>}
-      {vitrine && <Credit />}
+      {vitrine && (
+        <Credit
+          onOpen={
+            slug ? () => api.trackClick(slug, hero.kind === 'thanks' ? 'thanks' : 'form') : undefined
+          }
+        />
+      )}
     </div>
   )
 }
@@ -124,10 +132,10 @@ const AGALUMY_URL =
  * Signature de la page : ceux qui la remplissent viennent de la voir à
  * l'œuvre, c'est le meilleur moment pour leur dire qui l'a faite.
  */
-function Credit() {
+function Credit({ onOpen }: { onOpen?: () => void }) {
   return (
     <footer className="public-credit">
-      <a className="credit-card" href={AGALUMY_URL} target="_blank" rel="noopener">
+      <a className="credit-card" href={AGALUMY_URL} target="_blank" rel="noopener" onClick={onOpen}>
         <img className="credit-logo" src={AGALUMY_ICON} alt="" width={48} height={46} />
         <span className="credit-text">
           <span className="credit-kicker">Par Agalumy</span>
@@ -280,14 +288,14 @@ export function SignupPage({ slug }: { slug: string }) {
 
   if (loadError) {
     return (
-      <Shell vitrine kicker="Annuaire des participants" hero={{ kind: 'plain', title: 'Lien introuvable' }}>
+      <Shell vitrine slug={slug} kicker="Annuaire des participants" hero={{ kind: 'plain', title: 'Lien introuvable' }}>
         <p className="public-text">{loadError}</p>
       </Shell>
     )
   }
   if (!event) {
     return (
-      <Shell vitrine kicker="" hero={{ kind: 'loading' }} />
+      <Shell vitrine slug={slug} kicker="" hero={{ kind: 'loading' }} />
     )
   }
 
@@ -295,7 +303,7 @@ export function SignupPage({ slug }: { slug: string }) {
 
   if (token) {
     return (
-      <Shell vitrine kicker={kicker} hero={{ kind: 'thanks' }}>
+      <Shell vitrine slug={slug} kicker={kicker} hero={{ kind: 'thanks' }}>
         <p className="public-text">
           Vous recevrez par mail l'annuaire des participants après la soirée, et vous y figurerez
           avec ce que vous avez choisi de partager.
@@ -314,7 +322,7 @@ export function SignupPage({ slug }: { slug: string }) {
 
   if (!event.is_open) {
     return (
-      <Shell vitrine kicker={kicker} hero={{ kind: 'brand', subtitle: 'Le formulaire ouvrira bientôt' }}>
+      <Shell vitrine slug={slug} kicker={kicker} hero={{ kind: 'brand', subtitle: 'Le formulaire ouvrira bientôt' }}>
         <p className="public-text">
           Le formulaire pour recevoir les contacts de la soirée n'est pas encore ouvert. Revenez un
           peu plus tard, ou rapprochez-vous des organisateurs.
@@ -338,7 +346,7 @@ export function SignupPage({ slug }: { slug: string }) {
   }
 
   return (
-    <Shell vitrine kicker={kicker} hero={{ kind: 'brand', subtitle: 'Récupérez les contacts de la soirée' }}>
+    <Shell vitrine slug={slug} kicker={kicker} hero={{ kind: 'brand', subtitle: 'Récupérez les contacts de la soirée' }}>
       <p className="public-text">
         Remplissez ce formulaire et recevez par mail, après la soirée, l'annuaire de tous ceux qui
         l'ont rempli : qui ils sont, ce qu'ils font, et comment les joindre quand ils l'acceptent.
