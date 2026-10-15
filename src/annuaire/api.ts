@@ -28,6 +28,8 @@ export interface MyEntry extends EntryFields {
 export interface AdminEntry extends EntryFields {
   id: string
   consented_at: string
+  /** Inscription en double : fiche principale qu'elle rejoint dans l'annuaire. */
+  duplicate_of: string | null
 }
 
 /** Clics sur la carte « Par Agalumy », sans rien qui identifie la personne. */

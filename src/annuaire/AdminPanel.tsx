@@ -95,7 +95,10 @@ export default function AdminPanel({ onClose }: Props) {
   }, [url])
 
   const entries = data?.entries ?? []
-  const sharing = entries.filter((e) => e.share_contact).length
+  // Les inscriptions en double restent listées mais ne comptent qu'une fois.
+  const people = entries.filter((e) => !e.duplicate_of)
+  const duplicates = entries.length - people.length
+  const sharing = people.filter((e) => e.share_contact).length
   const dist = data?.distribution
   const distUrl = dist?.code ? readerUrl(slug, dist.code) : ''
   const readers = entries
@@ -365,9 +368,10 @@ export default function AdminPanel({ onClose }: Props) {
       <div className="annuaire-section">
         <div className="annuaire-row">
           <h3 className="pane-title">
-            Réponses <span className="count">{entries.length}</span>
+            Réponses <span className="count">{people.length}</span>
           </h3>
           <span className="card-hint">
+            {duplicates > 0 && `${duplicates} doublon${duplicates > 1 ? 's' : ''} fusionné${duplicates > 1 ? 's' : ''} · `}
             {sharing} partage{sharing > 1 ? 'nt' : ''} ses coordonnées · conservation jusqu'au{' '}
             {frDate(data.retention_until)}
           </span>
@@ -381,7 +385,7 @@ export default function AdminPanel({ onClose }: Props) {
               run(async () => {
                 await saveFile(
                   'annuaire-participants.pdf',
-                  directoryPdf(data.title, data.event_date, entries.map(formatEntry)),
+                  directoryPdf(data.title, data.event_date, people.map(formatEntry)),
                 )
               })
             }
@@ -405,7 +409,7 @@ export default function AdminPanel({ onClose }: Props) {
             onClick={() =>
               run(async () => {
                 const rows = [
-                  ['Prénom', 'Nom', 'Activité', 'Groupe', 'Email', 'Téléphone', 'Coordonnées partagées', 'Consentement'],
+                  ['Prénom', 'Nom', 'Activité', 'Groupe', 'Email', 'Téléphone', 'Coordonnées partagées', 'Consentement', 'Doublon'],
                   ...entries.map((e) => [
                     e.first_name,
                     e.last_name,
@@ -415,6 +419,7 @@ export default function AdminPanel({ onClose }: Props) {
                     e.phone,
                     e.share_contact ? 'oui' : 'non',
                     frDate(e.consented_at),
+                    e.duplicate_of ? 'oui' : '',
                   ]),
                 ]
                 await saveFile('reponses-annuaire.xlsx', buildXlsx(rows))
@@ -448,6 +453,11 @@ export default function AdminPanel({ onClose }: Props) {
                   <tr key={e.id}>
                     <td>
                       {e.first_name} {e.last_name}
+                      {e.duplicate_of && (
+                        <span className="dup-tag" title="Inscrit deux fois : fusionné avec l'autre fiche dans l'annuaire">
+                          doublon
+                        </span>
+                      )}
                     </td>
                     <td>{e.activity}</td>
                     <td>{e.grp || '—'}</td>
