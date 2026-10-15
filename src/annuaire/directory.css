@@ -551,6 +551,7 @@
   vertical-align: 2px;
 }
 .dir-activity { font-size: 14px; line-height: 1.45; color: #d9cdbf; }
+.dir-detail { margin: 2px 0 0; font-size: 13.5px; line-height: 1.5; color: #b9ab99; text-wrap: pretty; }
 .dir-grp {
   align-self: flex-start;
   margin-top: 2px;

@@ -371,6 +371,8 @@ export interface DirectoryEntry {
   first_name: string
   last_name: string
   activity: string
+  /** Présentation détaillée rédigée par l'organisateur, à la place de l'activité. */
+  activity_detail?: string
   grp: string
   email: string
   phone: string
@@ -420,11 +422,13 @@ export function directoryPdf(
       ),
     }))
 
-  // Hauteur d'une fiche : nom, activité (sur deux lignes au plus), coordonnées.
+  // Hauteur d'une fiche : nom, activité (deux lignes au plus, quatre pour une
+  // présentation détaillée), coordonnées.
   const card = (e: DirectoryEntry) => {
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(9)
-    const activity = (doc.splitTextToSize(e.activity, colW - 2) as string[]).slice(0, 2)
+    const detail = e.activity_detail?.trim()
+    const activity = (doc.splitTextToSize(detail || e.activity, colW - 2) as string[]).slice(0, detail ? 4 : 2)
     const contact = e.share_contact
       ? [e.email, e.phone].filter((v) => v.trim() !== '').join('  ·  ')
       : ''

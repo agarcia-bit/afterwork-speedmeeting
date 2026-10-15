@@ -262,7 +262,7 @@ function Directory({ data, name, slug }: { data: ReaderDirectory; name: string; 
       .trim()
     if (!q) return data.entries
     return data.entries.filter((e) =>
-      `${e.first_name} ${e.last_name} ${e.activity} ${e.grp}`
+      `${e.first_name} ${e.last_name} ${e.activity} ${e.activity_detail ?? ''} ${e.grp}`
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
@@ -413,6 +413,7 @@ function Directory({ data, name, slug }: { data: ReaderDirectory; name: string; 
                   {e.id === data.me && <span className="dir-you">vous</span>}
                 </div>
                 {e.activity && <div className="dir-activity">{e.activity}</div>}
+                {e.activity_detail && <p className="dir-detail">{e.activity_detail}</p>}
                 {e.grp && <span className="dir-grp">{e.grp}</span>}
                 {shared ? (
                   <div className="dir-contact">

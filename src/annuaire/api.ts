@@ -56,6 +56,8 @@ export interface AdminEvent extends Omit<PublicEvent, 'claimed'> {
 /** Fiche telle que la voit un participant : coordonnées seulement si partagées. */
 export interface ReaderEntry {
   id: string
+  /** Présentation détaillée de l'activité, rédigée par l'organisateur (peut être vide). */
+  activity_detail: string
   first_name: string
   last_name: string
   activity: string

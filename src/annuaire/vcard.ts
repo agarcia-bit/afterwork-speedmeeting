@@ -45,7 +45,7 @@ function card(e: ReaderEntry, ctx: VcfContext): string {
   const phone = formatPhone(e.phone)
   const note = [
     `Rencontré·e à l'${ctx.title}, le ${ctx.date}.`,
-    e.activity && `Activité : ${e.activity}`,
+    e.activity_detail?.trim() || (e.activity && `Activité : ${e.activity}`),
     e.grp && `Association : ${e.grp}`,
   ]
     .filter(Boolean)
