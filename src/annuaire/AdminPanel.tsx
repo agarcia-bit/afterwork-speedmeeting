@@ -3,6 +3,7 @@ import qrcode from 'qrcode-generator'
 import { api, ApiError, frDate, type AdminEvent, type PublicEvent } from './api'
 import { CURRENT_EVENT, SITE_URL, formUrl, readerUrl } from './config'
 import { directoryPdf } from '../listing'
+import { formatEntry } from './contactFormat'
 import { buildXlsx } from '../xlsx'
 import { saveFile } from '../download'
 
@@ -380,7 +381,7 @@ export default function AdminPanel({ onClose }: Props) {
               run(async () => {
                 await saveFile(
                   'annuaire-participants.pdf',
-                  directoryPdf(data.title, data.event_date, entries),
+                  directoryPdf(data.title, data.event_date, entries.map(formatEntry)),
                 )
               })
             }

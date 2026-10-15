@@ -5,7 +5,8 @@ import { Credit, eventKicker, prefetchEvent } from './PublicPages'
 import Embers from './Embers'
 import SplitText from './SplitText'
 import { prefersReducedMotion, useSequence } from './motion'
-import { buildVcf, shareableCount } from './vcard'
+import { buildOneVcf, buildVcf, shareableCount } from './vcard'
+import { byName, formatEntry, formatFirstName, formatPhone } from './contactFormat'
 import { groupColor } from '../colors'
 import { directoryPdf } from '../listing'
 import { saveFile } from '../download'
@@ -232,36 +233,86 @@ function Flight({
 // ---------------------------------------------------------------------------
 // L'annuaire
 
+const VCF_NAME = 'contacts-afterwork-interasso.vcf'
+
+/** iPhone et iPad (y compris iPadOS, qui se présente comme un Mac tactile). */
+const isIOS = () =>
+  /iP(hone|ad|od)/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+const isAndroid = () => /Android/i.test(navigator.userAgent)
+
 function Directory({ data, name, slug }: { data: ReaderDirectory; name: string; slug: string }) {
   const [query, setQuery] = useState('')
   const [notice, setNotice] = useState<string | null>(null)
+  const [ios] = useState(isIOS)
+  const [android] = useState(isAndroid)
   const contacts = shareableCount(data.entries, data.me)
+  const [y, m, d] = data.event_date.split('-').map(Number)
+  const ctx = {
+    title: data.title,
+    date: new Date(y, m - 1, d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
+  }
 
   const list = useMemo(() => {
     const q = query
       .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
+      .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
       .trim()
     if (!q) return data.entries
     return data.entries.filter((e) =>
       `${e.first_name} ${e.last_name} ${e.activity} ${e.grp}`
         .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
+        .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
         .includes(q),
     )
   }, [data.entries, query])
 
   async function addContacts() {
-    const [y, m, d] = data.event_date.split('-').map(Number)
-    const when = new Date(y, m - 1, d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-    const vcf = buildVcf(data.entries, data.me, `Rencontré·e à l'${data.title}, le ${when}`)
-    const outcome = await saveFile(
-      'contacts-afterwork-interasso.vcf',
-      new Blob([vcf], { type: 'text/vcard;charset=utf-8' }),
-    )
-    if (outcome === 'saved') setNotice(`${contacts} contacts prêts à importer : ouvrez le fichier téléchargé.`)
+    const vcf = buildVcf(data.entries, data.me, ctx)
+    if (ios) {
+      // Ouvert depuis Safari, un fichier de plusieurs fiches n'en montre que la
+      // première. Le menu Partager le confie à Contacts (ou à Fichiers), qui
+      // proposent « Ajouter les N contacts ».
+      const file = new File([vcf], VCF_NAME, { type: 'text/vcard' })
+      if (navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file] })
+        } catch (err) {
+          if ((err as DOMException).name !== 'AbortError') {
+            setNotice("Le partage n'a pas abouti. Réessayez, ou ajoutez les contacts un par un depuis leur fiche.")
+          }
+        }
+        return
+      }
+      // Sans partage de fichiers : enregistré dans Fichiers › Téléchargements,
+      // plutôt qu'ouvert (et tronqué) par Safari.
+      const outcome = await saveFile(VCF_NAME, new Blob([vcf], { type: 'application/octet-stream' }))
+      if (outcome === 'saved') {
+        setNotice(
+          `Ouvrez l'app Fichiers › Téléchargements, touchez « ${VCF_NAME} » puis « Ajouter les ${contacts} contacts ».`,
+        )
+      }
+      return
+    }
+    const outcome = await saveFile(VCF_NAME, new Blob([vcf], { type: 'text/x-vcard;charset=utf-8' }))
+    if (outcome === 'saved') {
+      setNotice(
+        android
+          ? `Ouvrez le fichier téléchargé : l'application Contacts importe les ${contacts} contacts d'un coup.`
+          : `Fichier enregistré : importez-le dans Contacts (Mac), Google Contacts ou Outlook pour ajouter les ${contacts} contacts.`,
+      )
+    }
+  }
+
+  async function addOne(e: ReaderEntry) {
+    const slugName = `${e.first_name}-${e.last_name}`
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Za-z0-9-]+/g, '-')
+      .toLowerCase()
+    await saveFile(`${slugName}.vcf`, new Blob([buildOneVcf(e, ctx)], { type: 'text/vcard;charset=utf-8' }))
   }
 
   async function downloadPdf() {
@@ -282,16 +333,30 @@ function Directory({ data, name, slug }: { data: ReaderDirectory; name: string; 
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19M10 10.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M19 8v6M22 11h-6" />
           </svg>
-          Ajouter {contacts} contacts à mon téléphone
+          Ajouter les {contacts} contacts à mon {ios ? 'iPhone' : 'téléphone'}
         </button>
+        {ios ? (
+          <ol className="dir-steps">
+            <li>Touchez le bouton ci-dessus.</li>
+            <li>
+              Dans le menu, choisissez <b>Contacts</b>. S'il n'apparaît pas : <b>Enregistrer dans
+              Fichiers</b>, puis ouvrez le fichier depuis l'app Fichiers.
+            </li>
+            <li>
+              Touchez <b>Ajouter les {contacts} contacts</b>.
+            </li>
+          </ol>
+        ) : (
+          <p className="dir-hint">
+            {android
+              ? "Ouvrez le fichier téléchargé : l'application Contacts importe toutes les fiches d'un coup."
+              : 'Sur téléphone, ouvrez cette page depuis le lien reçu par mail pour tout ajouter en un geste.'}
+          </p>
+        )}
+        {notice && <div className="banner ok">{notice}</div>}
         <button className="btn dir-secondary" onClick={downloadPdf}>
           Télécharger l'annuaire en PDF
         </button>
-        <p className="dir-hint">
-          Sur iPhone, ouvrez le fichier téléchargé puis touchez « Ajouter tous les contacts ». Sur
-          Android, ouvrez-le avec l'application Contacts.
-        </p>
-        {notice && <div className="banner ok">{notice}</div>}
       </div>
 
       <label className="dir-search">
@@ -305,33 +370,49 @@ function Directory({ data, name, slug }: { data: ReaderDirectory; name: string; 
       </label>
 
       <ul className="dir-list">
-        {list.map((e, i) => (
-          <li
-            key={e.id}
-            className={`dir-card${e.id === data.me ? ' is-me' : ''}`}
-            style={{ '--k': Math.min(i, 12) } as CSSProperties}
-          >
-            <span className="dir-avatar" style={{ background: groupColor(e.grp) }}>
-              {initials(e)}
-            </span>
-            <div className="dir-body">
-              <div className="dir-name">
-                {e.first_name} {e.last_name}
-                {e.id === data.me && <span className="dir-you">vous</span>}
-              </div>
-              <div className="dir-activity">{e.activity}</div>
-              {e.grp && <span className="dir-grp">{e.grp}</span>}
-              {e.share_contact && (e.email || e.phone) ? (
-                <div className="dir-contact">
-                  {e.email && <a href={`mailto:${e.email}`}>{e.email}</a>}
-                  {e.phone && <a href={`tel:${e.phone.replace(/\s+/g, '')}`}>{e.phone}</a>}
+        {list.map((e, i) => {
+          const phone = formatPhone(e.phone)
+          const shared = e.share_contact && !!(e.email || phone)
+          return (
+            <li
+              key={e.id}
+              className={`dir-card${e.id === data.me ? ' is-me' : ''}`}
+              style={{ '--k': Math.min(i, 12) } as CSSProperties}
+            >
+              <span className="dir-avatar" style={{ background: groupColor(e.grp) }}>
+                {initials(e)}
+              </span>
+              <div className="dir-body">
+                <div className="dir-name">
+                  {e.first_name} <span className="dir-last">{e.last_name}</span>
+                  {e.id === data.me && <span className="dir-you">vous</span>}
                 </div>
-              ) : (
-                <div className="dir-private">Coordonnées non partagées</div>
+                {e.activity && <div className="dir-activity">{e.activity}</div>}
+                {e.grp && <span className="dir-grp">{e.grp}</span>}
+                {shared ? (
+                  <div className="dir-contact">
+                    {e.email && <a href={`mailto:${e.email}`}>{e.email}</a>}
+                    {phone && <a href={`tel:${phone.dial}`}>{phone.display}</a>}
+                  </div>
+                ) : (
+                  <div className="dir-private">Coordonnées non partagées</div>
+                )}
+              </div>
+              {shared && e.id !== data.me && (
+                <button
+                  className="dir-add"
+                  onClick={() => addOne(e)}
+                  aria-label={`Ajouter ${e.first_name} ${e.last_name} à mes contacts`}
+                  title="Ajouter à mes contacts"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19M10 10.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M19 8v6M22 11h-6" />
+                  </svg>
+                </button>
               )}
-            </div>
-          </li>
-        ))}
+            </li>
+          )
+        })}
         {list.length === 0 && <li className="dir-empty">Aucun participant ne correspond.</li>}
       </ul>
 
@@ -400,7 +481,7 @@ export function DirectoryPage({ slug, code }: { slug: string; code: string }) {
       } catch {
         // Sans stockage, il faudra ressaisir l'adresse au prochain passage.
       }
-      setWho(res.first_name)
+      setWho(formatFirstName(res.first_name))
       setEngaged(false)
       setStage('engage')
     } catch (err) {
@@ -420,7 +501,7 @@ export function DirectoryPage({ slug, code }: { slug: string; code: string }) {
     setError(null)
     try {
       const res = await api.readerOpen(slug, code, email, ENGAGEMENT_VERSION)
-      setData(res)
+      setData({ ...res, entries: res.entries.map(formatEntry).sort(byName) })
       setStage('flight')
     } catch (err) {
       setStage('login')
