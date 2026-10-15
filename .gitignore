@@ -7,3 +7,6 @@ dist/
 # Local Netlify folder
 .netlify
 .netlify/
+
+# Exports contenant des données personnelles : jamais dans le dépôt public
+exports/
