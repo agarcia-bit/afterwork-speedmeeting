@@ -104,6 +104,25 @@ export default function AdminPanel({ onClose }: Props) {
   const readers = entries
     .filter((e) => e.opened_at)
     .sort((a, b) => (b.opened_at ?? '').localeCompare(a.opened_at ?? ''))
+  // Liste de diffusion Brevo : une ligne par personne (adresse de la fiche
+  // principale), avec l'ouverture de l'annuaire pour cibler les relances.
+  const brevoXlsx = (list: typeof people) =>
+    buildXlsx([
+      ['EMAIL', 'PRENOM', 'NOM', 'ASSOCIATION', 'ANNUAIRE_OUVERT', 'DATE_OUVERTURE', 'PARTAGE_COORDONNEES'],
+      ...list.map((raw) => {
+        const e = formatEntry(raw)
+        return [
+          e.email,
+          e.first_name,
+          e.last_name,
+          e.grp,
+          raw.opened_at ? 'Oui' : 'Non',
+          raw.opened_at ? raw.opened_at.slice(0, 10) : '',
+          e.share_contact ? 'Oui' : 'Non',
+        ]
+      }),
+    ])
+  const notOpened = people.filter((e) => !e.opened_at)
   const when = (iso: string) =>
     new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
 
@@ -317,6 +336,30 @@ export default function AdminPanel({ onClose }: Props) {
               ? "Personne n'a encore ouvert l'annuaire."
               : `${dist.readers} participant${dist.readers > 1 ? 's ont' : ' a'} ouvert l'annuaire · dernière ouverture le ${when(dist.last ?? '')}`}
           </p>
+          <div className="annuaire-actions">
+            <button
+              className="btn btn-sm"
+              disabled={people.length === 0}
+              onClick={() =>
+                run(async () => {
+                  await saveFile('brevo-annuaire-tous.xlsx', brevoXlsx(people))
+                }, `${people.length} contacts exportés pour Brevo.`)
+              }
+            >
+              Liste Brevo — tous ({people.length})
+            </button>
+            <button
+              className="btn btn-sm"
+              disabled={notOpened.length === 0}
+              onClick={() =>
+                run(async () => {
+                  await saveFile('brevo-annuaire-a-relancer.xlsx', brevoXlsx(notOpened))
+                }, `${notOpened.length} contacts à relancer exportés pour Brevo.`)
+              }
+            >
+              Liste Brevo — pas encore ouvert ({notOpened.length})
+            </button>
+          </div>
           {readers.length > 0 && (
             <details className="dist-readers">
               <summary>Voir qui l'a ouvert</summary>
