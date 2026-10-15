@@ -181,10 +181,6 @@ export const api = {
   adminDelete: (slug: string, key: string, entryId: string) =>
     rpc<null>('annuaire_admin_delete_entry', { p_slug: slug, p_key: key, p_entry: entryId }),
 
-  /**
-   * Compte un clic vers le site d'Agalumy. Ne doit jamais gêner la visite :
-   * envoi en arrière-plan, maintenu si l'onglet change, erreurs ignorées.
-   */
   readerCheck: (slug: string, code: string, email: string) =>
     rpc<{ first_name: string; title: string; event_date: string; count: number }>(
       'annuaire_reader_check',
@@ -199,9 +195,17 @@ export const api = {
       p_engagement: engagement,
     }),
 
+  /** Donnant-donnant : le lecteur partage ses coordonnées pour voir celles des autres. */
+  readerShare: (slug: string, code: string, email: string, version: string) =>
+    rpc<null>('annuaire_reader_share', { p_slug: slug, p_code: code, p_email: email, p_version: version }),
+
   adminDistribution: (slug: string, key: string, open: boolean) =>
     rpc<string>('annuaire_admin_distribution', { p_slug: slug, p_key: key, p_open: open }),
 
+  /**
+   * Compte un clic vers le site d'Agalumy. Ne doit jamais gêner la visite :
+   * envoi en arrière-plan, maintenu si l'onglet change, erreurs ignorées.
+   */
   trackClick(slug: string, page: 'form' | 'thanks' | 'directory') {
     fetch(`${SUPABASE_URL}/rest/v1/rpc/annuaire_track_click`, {
       method: 'POST',

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { api, ApiError, type ReaderDirectory, type ReaderEntry } from './api'
-import { ENGAGEMENT_TEXT, ENGAGEMENT_VERSION } from './config'
+import { CONSENT_VERSION, ENGAGEMENT_TEXT, ENGAGEMENT_VERSION } from './config'
 import { Credit, eventKicker, prefetchEvent } from './PublicPages'
 import Embers from './Embers'
 import SplitText from './SplitText'
@@ -99,7 +99,9 @@ function Flight({
   const stage = useRef<HTMLDivElement>(null)
   const others = data.entries.filter((e) => e.id !== data.me)
   const flying = others.slice(0, FLYING)
-  const total = shareableCount(data.entries, data.me)
+  // Sans partage de sa part, on compte les fiches de l'annuaire, pas des contacts.
+  const meShares = data.entries.find((e) => e.id === data.me)?.share_contact ?? true
+  const total = meShares ? shareableCount(data.entries, data.me) : others.length
   const [counter, setCounter] = useState(0)
   const [done, setDone] = useState(false)
 
@@ -242,9 +244,25 @@ const isIOS = () =>
   (/iP(hone|ad|od)/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
 
-function Directory({ data, name, slug }: { data: ReaderDirectory; name: string; slug: string }) {
+function Directory({
+  data,
+  name,
+  slug,
+  onShare,
+}: {
+  data: ReaderDirectory
+  name: string
+  slug: string
+  onShare: () => Promise<void>
+}) {
   const [query, setQuery] = useState('')
   const [notice, setNotice] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState(false)
+  const [sharing, setSharing] = useState(false)
+  const [shareError, setShareError] = useState<string | null>(null)
+  const meShares = data.entries.find((e) => e.id === data.me)?.share_contact ?? true
+  const others = data.entries.filter((e) => e.id !== data.me).length
+  const sharers = data.entries.filter((e) => e.id !== data.me && e.share_contact).length
   const [ios] = useState(isIOS)
   const [android] = useState(isAndroid)
   const contacts = shareableCount(data.entries, data.me)
@@ -316,6 +334,20 @@ function Directory({ data, name, slug }: { data: ReaderDirectory; name: string; 
     await saveFile(`${slugName}.vcf`, new Blob([buildOneVcf(e, ctx)], { type: 'text/vcard;charset=utf-8' }))
   }
 
+  async function share() {
+    setSharing(true)
+    setShareError(null)
+    try {
+      await onShare()
+      setConfirming(false)
+      setNotice('Merci ! Vos coordonnées sont partagées : celles des autres participants sont maintenant visibles.')
+    } catch (err) {
+      setShareError(errorText(err))
+    } finally {
+      setSharing(false)
+    }
+  }
+
   async function downloadPdf() {
     await saveFile('annuaire-afterwork-interasso.pdf', directoryPdf(data.title, data.event_date, data.entries))
   }
@@ -325,18 +357,54 @@ function Directory({ data, name, slug }: { data: ReaderDirectory; name: string; 
       <div className="dir-head">
         <h2>Votre annuaire, {name}</h2>
         <p>
-          {data.entries.length} participants · {contacts} avec leurs coordonnées
+          {data.entries.length} participants · {sharers} avec leurs coordonnées
         </p>
       </div>
 
+      {!meShares && (
+        <div className="dir-give">
+          <p className="dir-give-kicker">Donnant-donnant</p>
+          <p>
+            Vous avez choisi de ne pas partager vos coordonnées : celles des autres participants sont
+            donc masquées. Partagez les vôtres pour les voir et les ajouter à votre téléphone.
+          </p>
+          {confirming ? (
+            <div className="dir-give-confirm">
+              <p>
+                Votre adresse mail et votre téléphone (si vous l'avez indiqué) seront visibles des{' '}
+                {others} autres participants dans cet annuaire. Vous pourrez revenir sur ce choix à
+                tout moment depuis votre espace personnel ou auprès des organisateurs.
+              </p>
+              {shareError && (
+                <div className="banner bad" role="alert">
+                  {shareError}
+                </div>
+              )}
+              <button className="btn btn-primary dir-primary" onClick={share} disabled={sharing}>
+                {sharing ? 'Partage en cours…' : 'Oui, je partage mes coordonnées'}
+              </button>
+              <button className="btn btn-ghost" onClick={() => setConfirming(false)} disabled={sharing}>
+                Annuler
+              </button>
+            </div>
+          ) : (
+            <button className="btn btn-primary dir-primary" onClick={() => setConfirming(true)}>
+              Partager mes coordonnées
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="dir-actions">
-        <button className="btn btn-primary dir-primary" onClick={addContacts} disabled={contacts === 0}>
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19M10 10.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M19 8v6M22 11h-6" />
-          </svg>
-          {ios ? `Enregistrer les ${contacts} contacts` : `Ajouter les ${contacts} contacts à mon téléphone`}
-        </button>
-        {ios ? (
+        {meShares && (
+          <button className="btn btn-primary dir-primary" onClick={addContacts} disabled={contacts === 0}>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19M10 10.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M19 8v6M22 11h-6" />
+            </svg>
+            {ios ? `Enregistrer les ${contacts} contacts` : `Ajouter les ${contacts} contacts à mon téléphone`}
+          </button>
+        )}
+        {!meShares ? null : ios ? (
           <>
             <ol className="dir-steps">
               <li>
@@ -420,6 +488,8 @@ function Directory({ data, name, slug }: { data: ReaderDirectory; name: string; 
                     {e.email && <a href={`mailto:${e.email}`}>{e.email}</a>}
                     {phone && <a href={`tel:${phone.dial}`}>{phone.display}</a>}
                   </div>
+                ) : e.share_contact && !meShares && e.id !== data.me ? (
+                  <div className="dir-private">Coordonnées visibles quand vous partagez les vôtres</div>
                 ) : (
                   <div className="dir-private">Coordonnées non partagées</div>
                 )}
@@ -522,6 +592,12 @@ export function DirectoryPage({ slug, code }: { slug: string; code: string }) {
     window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
   }
 
+  async function share() {
+    await api.readerShare(slug, code, email, CONSENT_VERSION)
+    const res = await api.readerOpen(slug, code, email, ENGAGEMENT_VERSION)
+    setData({ ...res, entries: res.entries.map(formatEntry).sort(byName) })
+  }
+
   async function open() {
     setBusy(true)
     setError(null)
@@ -589,7 +665,7 @@ export function DirectoryPage({ slug, code }: { slug: string; code: string }) {
             <Flight data={data} title={title} date={shortDate} onDone={ready} />
           )}
 
-          {stage === 'ready' && data && <Directory data={data} name={who} slug={slug} />}
+          {stage === 'ready' && data && <Directory data={data} name={who} slug={slug} onShare={share} />}
         </main>
 
         {stage === 'engage' && (

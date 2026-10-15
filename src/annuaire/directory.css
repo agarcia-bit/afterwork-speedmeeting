@@ -446,6 +446,27 @@
 }
 .dir-head p { margin: 0; font-size: 14px; color: var(--muted); }
 
+.dir-give {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(232, 134, 42, 0.45);
+  background:
+    radial-gradient(120% 120% at 0% 0%, rgba(232, 134, 42, 0.16), transparent 60%),
+    linear-gradient(180deg, #241b13, #18130e);
+}
+.dir-give p { margin: 0; font-size: 14px; line-height: 1.55; color: #d9cdbf; text-wrap: pretty; }
+.dir-give .dir-give-kicker {
+  font-family: var(--font-title);
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.dir-give-confirm { display: flex; flex-direction: column; gap: 10px; }
+.dir-give-confirm .btn-ghost { align-self: center; }
 .dir-actions { display: flex; flex-direction: column; gap: 10px; }
 .btn.dir-primary {
   position: relative;
