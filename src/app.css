@@ -1136,3 +1136,6 @@ button.seat:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
 .annuaire-footer .spacer { flex: 1; }
 
 .click-days { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.dist-readers summary { cursor: pointer; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+.dist-readers summary:hover { color: var(--text); }

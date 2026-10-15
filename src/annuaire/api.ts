@@ -39,9 +39,37 @@ export interface ClickStats {
   by_day: { day: string; n: number }[]
 }
 
+export interface DistributionStats {
+  open: boolean
+  code: string | null
+  /** Personnes ayant ouvert l'annuaire au moins une fois. */
+  readers: number
+  last: string | null
+}
+
 export interface AdminEvent extends Omit<PublicEvent, 'claimed'> {
-  entries: AdminEntry[]
+  entries: (AdminEntry & { opened_at: string | null })[]
   clicks: ClickStats
+  distribution: DistributionStats
+}
+
+/** Fiche telle que la voit un participant : coordonnées seulement si partagées. */
+export interface ReaderEntry {
+  id: string
+  first_name: string
+  last_name: string
+  activity: string
+  grp: string
+  email: string
+  phone: string
+  share_contact: boolean
+}
+
+export interface ReaderDirectory {
+  title: string
+  event_date: string
+  me: string
+  entries: ReaderEntry[]
 }
 
 /** Erreur métier renvoyée par la base, traduite pour l'utilisateur. */
@@ -63,6 +91,11 @@ const MESSAGES: Record<string, string> = {
   complet: "L'annuaire a atteint sa capacité maximale.",
   inscription_introuvable: "Ce lien personnel n'est plus valable : l'inscription a peut-être été supprimée.",
   acces_refuse: 'Clé organisateur incorrecte.',
+  acces_ferme:
+    "Ce lien n'est pas valable, ou l'annuaire n'est pas encore ouvert. Utilisez le lien reçu par mail.",
+  adresse_inconnue:
+    "Cette adresse ne figure pas parmi les personnes qui ont rempli le formulaire. Utilisez celle donnée lors de votre inscription.",
+  engagement_requis: "Cochez l'engagement pour ouvrir l'annuaire.",
   deja_revendique: 'Une clé organisateur existe déjà pour cette soirée : connectez-vous avec elle.',
   cle_trop_courte: 'La clé doit faire au moins 12 caractères.',
   entries_email: "L'adresse mail ne semble pas valide.",
@@ -150,7 +183,24 @@ export const api = {
    * Compte un clic vers le site d'Agalumy. Ne doit jamais gêner la visite :
    * envoi en arrière-plan, maintenu si l'onglet change, erreurs ignorées.
    */
-  trackClick(slug: string, page: 'form' | 'thanks') {
+  readerCheck: (slug: string, code: string, email: string) =>
+    rpc<{ first_name: string; title: string; event_date: string; count: number }>(
+      'annuaire_reader_check',
+      { p_slug: slug, p_code: code, p_email: email },
+    ),
+
+  readerOpen: (slug: string, code: string, email: string, engagement: string) =>
+    rpc<ReaderDirectory>('annuaire_reader_open', {
+      p_slug: slug,
+      p_code: code,
+      p_email: email,
+      p_engagement: engagement,
+    }),
+
+  adminDistribution: (slug: string, key: string, open: boolean) =>
+    rpc<string>('annuaire_admin_distribution', { p_slug: slug, p_key: key, p_open: open }),
+
+  trackClick(slug: string, page: 'form' | 'thanks' | 'directory') {
     fetch(`${SUPABASE_URL}/rest/v1/rpc/annuaire_track_click`, {
       method: 'POST',
       keepalive: true,

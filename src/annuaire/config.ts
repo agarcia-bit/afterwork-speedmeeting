@@ -20,3 +20,14 @@ export const CONSENT_VERSION = '2026-10-05-v1'
 
 export const formUrl = (slug: string) => `${SITE_URL}/annuaire/${slug}`
 export const selfUrl = (token: string) => `${SITE_URL}/annuaire/moi/${token}`
+
+/** Page de diffusion de l'annuaire, envoyée par l'organisateur (campagne Brevo). */
+export const readerUrl = (slug: string, code: string) => `${SITE_URL}/annuaire/${slug}/recevoir/${code}`
+
+/**
+ * Engagement accepté avant d'ouvrir l'annuaire. Sa version est enregistrée
+ * avec chaque accès : en changer le texte impose de changer la version.
+ */
+export const ENGAGEMENT_VERSION = 'engagement-2026-10-15-v1'
+export const ENGAGEMENT_TEXT =
+  "Je m'engage à utiliser ces contacts uniquement pour mon usage personnel, pour reprendre contact avec les participants de la soirée, et à ne pas les transmettre, les publier ni les partager avec d'autres personnes."

@@ -132,7 +132,7 @@ const AGALUMY_URL =
  * Signature de la page : ceux qui la remplissent viennent de la voir à
  * l'œuvre, c'est le meilleur moment pour leur dire qui l'a faite.
  */
-function Credit({ onOpen }: { onOpen?: () => void }) {
+export function Credit({ onOpen }: { onOpen?: () => void }) {
   return (
     <footer className="public-credit">
       <a className="credit-card" href={AGALUMY_URL} target="_blank" rel="noopener" onClick={onOpen}>
@@ -153,7 +153,7 @@ function Credit({ onOpen }: { onOpen?: () => void }) {
 }
 
 /** « INTERASSO · 6 octobre 2026 » : le titre géant dit déjà « Afterwork ». */
-function eventKicker(title: string, date: string) {
+export function eventKicker(title: string, date: string) {
   const short = title.replace(/^\s*afterwork\s*/i, '').trim() || title
   return `${short} · ${frDate(date)}`
 }

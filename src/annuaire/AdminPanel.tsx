@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import qrcode from 'qrcode-generator'
 import { api, ApiError, frDate, type AdminEvent, type PublicEvent } from './api'
-import { CURRENT_EVENT, SITE_URL, formUrl } from './config'
+import { CURRENT_EVENT, SITE_URL, formUrl, readerUrl } from './config'
 import { directoryPdf } from '../listing'
 import { buildXlsx } from '../xlsx'
 import { saveFile } from '../download'
@@ -95,6 +95,13 @@ export default function AdminPanel({ onClose }: Props) {
 
   const entries = data?.entries ?? []
   const sharing = entries.filter((e) => e.share_contact).length
+  const dist = data?.distribution
+  const distUrl = dist?.code ? readerUrl(slug, dist.code) : ''
+  const readers = entries
+    .filter((e) => e.opened_at)
+    .sort((a, b) => (b.opened_at ?? '').localeCompare(a.opened_at ?? ''))
+  const when = (iso: string) =>
+    new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
 
   // ---- Connexion ----------------------------------------------------------
 
@@ -252,6 +259,75 @@ export default function AdminPanel({ onClose }: Props) {
         </div>
       </div>
 
+      {dist && (
+        <div className="annuaire-section">
+          <div className="annuaire-row">
+            <h3 className="pane-title">
+              Diffusion de l'annuaire <span className="count">{dist.readers}</span>
+            </h3>
+            <span className={`pill ${dist.open ? 'good' : ''}`}>
+              {dist.open ? 'Accès ouvert' : 'Accès fermé'}
+            </span>
+          </div>
+          <p className="card-hint">
+            Un lien unique à mettre dans votre campagne Brevo. Chaque participant inscrit y entre
+            son adresse mail, s'engage à garder les contacts pour lui, puis récupère l'annuaire
+            (contacts du téléphone et PDF). Fermer l'accès coupe le lien immédiatement.
+          </p>
+          <div className="annuaire-actions">
+            <button
+              className={`btn btn-sm ${dist.open ? '' : 'btn-primary'}`}
+              disabled={busy}
+              onClick={() =>
+                run(async () => {
+                  await api.adminDistribution(slug, key, !dist.open)
+                  await load(key)
+                }, dist.open ? "Accès à l'annuaire fermé." : "Accès à l'annuaire ouvert.")
+              }
+            >
+              {dist.open ? "Fermer l'accès" : "Ouvrir l'accès"}
+            </button>
+          </div>
+          {distUrl && (
+            <>
+              <input readOnly value={distUrl} onFocus={(e) => e.currentTarget.select()} />
+              <div className="annuaire-actions">
+                <button
+                  className="btn btn-sm"
+                  onClick={() =>
+                    run(async () => {
+                      await navigator.clipboard.writeText(distUrl)
+                    }, 'Lien copié — à coller dans le bouton de la campagne Brevo.')
+                  }
+                >
+                  Copier le lien
+                </button>
+                <a className="btn btn-sm btn-ghost" href={distUrl} target="_blank" rel="noreferrer">
+                  Voir la page
+                </a>
+              </div>
+            </>
+          )}
+          <p className="card-hint">
+            {dist.readers === 0
+              ? "Personne n'a encore ouvert l'annuaire."
+              : `${dist.readers} participant${dist.readers > 1 ? 's ont' : ' a'} ouvert l'annuaire · dernière ouverture le ${when(dist.last ?? '')}`}
+          </p>
+          {readers.length > 0 && (
+            <details className="dist-readers">
+              <summary>Voir qui l'a ouvert</summary>
+              <div className="click-days">
+                {readers.map((e) => (
+                  <span className="chip" key={e.id} title={when(e.opened_at ?? '')}>
+                    {e.first_name} {e.last_name}
+                  </span>
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
+
       <div className="annuaire-section">
         <div className="annuaire-row">
           <h3 className="pane-title">
@@ -270,7 +346,8 @@ export default function AdminPanel({ onClose }: Props) {
         </div>
         <p className="card-hint">
           Clics sur la carte « Par Agalumy » : {data.clicks.form} depuis le formulaire,{' '}
-          {data.clicks.thanks} depuis l'écran de remerciement. Seuls la date et la page sont
+          {data.clicks.thanks} depuis l'écran de remerciement,{' '}
+          {data.clicks.total - data.clicks.form - data.clicks.thanks} depuis l'annuaire. Seuls la date et la page sont
           enregistrés, rien qui identifie la personne.
         </p>
         {data.clicks.by_day.length > 0 && (
