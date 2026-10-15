@@ -236,10 +236,11 @@ function Flight({
 const VCF_NAME = 'contacts-afterwork-interasso.vcf'
 
 /** iPhone et iPad (y compris iPadOS, qui se présente comme un Mac tactile). */
-const isIOS = () =>
-  /iP(hone|ad|od)/.test(navigator.userAgent) ||
-  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 const isAndroid = () => /Android/i.test(navigator.userAgent)
+const isIOS = () =>
+  !isAndroid() &&
+  (/iP(hone|ad|od)/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
 
 function Directory({ data, name, slug }: { data: ReaderDirectory; name: string; slug: string }) {
   const [query, setQuery] = useState('')
@@ -300,7 +301,7 @@ function Directory({ data, name, slug }: { data: ReaderDirectory; name: string; 
     if (outcome === 'saved') {
       setNotice(
         android
-          ? `Ouvrez le fichier téléchargé : l'application Contacts importe les ${contacts} contacts d'un coup.`
+          ? `Fichier téléchargé : ouvrez-le et choisissez Contacts pour importer les ${contacts} contacts.`
           : `Fichier enregistré : importez-le dans Contacts (Mac), Google Contacts ou Outlook pour ajouter les ${contacts} contacts.`,
       )
     }
@@ -353,11 +354,28 @@ function Directory({ data, name, slug }: { data: ReaderDirectory; name: string; 
               touchez la pièce jointe dans le mail reçu.
             </p>
           </>
+        ) : android ? (
+          <>
+            <ol className="dir-steps">
+              <li>Touchez le bouton : le fichier se télécharge.</li>
+              <li>
+                Touchez <b>Ouvrir</b> dans la notification de téléchargement (ou ouvrez le fichier
+                depuis <b>Fichiers › Téléchargements</b>) et choisissez <b>Contacts</b>.
+              </li>
+              <li>
+                Choisissez votre compte si on vous le demande, puis touchez <b>Importer</b>.
+              </li>
+            </ol>
+            <p className="dir-hint">
+              Si rien ne s'ouvre : dans l'app <b>Contacts</b>, menu <b>Corriger et gérer › Importer
+              depuis un fichier</b> (sur Samsung : <b>Gérer les contacts › Importer des contacts</b>),
+              puis choisissez {VCF_NAME}.
+            </p>
+          </>
         ) : (
           <p className="dir-hint">
-            {android
-              ? "Ouvrez le fichier téléchargé : l'application Contacts importe toutes les fiches d'un coup."
-              : 'Sur téléphone, ouvrez cette page depuis le lien reçu par mail pour tout ajouter en un geste.'}
+            Sur téléphone, ouvrez cette page depuis le lien reçu par mail pour tout ajouter en un
+            geste. Sur ordinateur, importez le fichier dans Contacts (Mac), Google Contacts ou Outlook.
           </p>
         )}
         {notice && <div className="banner ok">{notice}</div>}
