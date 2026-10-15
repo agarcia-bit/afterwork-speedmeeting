@@ -333,19 +333,26 @@ function Directory({ data, name, slug }: { data: ReaderDirectory; name: string; 
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19M10 10.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M19 8v6M22 11h-6" />
           </svg>
-          Ajouter les {contacts} contacts à mon {ios ? 'iPhone' : 'téléphone'}
+          {ios ? `Enregistrer les ${contacts} contacts` : `Ajouter les ${contacts} contacts à mon téléphone`}
         </button>
         {ios ? (
-          <ol className="dir-steps">
-            <li>Touchez le bouton ci-dessus.</li>
-            <li>
-              Dans le menu, choisissez <b>Contacts</b>. S'il n'apparaît pas : <b>Enregistrer dans
-              Fichiers</b>, puis ouvrez le fichier depuis l'app Fichiers.
-            </li>
-            <li>
-              Touchez <b>Ajouter les {contacts} contacts</b>.
-            </li>
-          </ol>
+          <>
+            <ol className="dir-steps">
+              <li>
+                Touchez le bouton, puis <b>Enregistrer dans Fichiers</b>.
+              </li>
+              <li>
+                Ouvrez l'app <b>Fichiers</b> et touchez <b>{VCF_NAME}</b>.
+              </li>
+              <li>
+                Touchez <b>Ajouter les {contacts} contacts</b>.
+              </li>
+            </ol>
+            <p className="dir-hint">
+              Autre solution : choisissez <b>Mail</b> dans le menu, envoyez-vous le fichier, puis
+              touchez la pièce jointe dans le mail reçu.
+            </p>
+          </>
         ) : (
           <p className="dir-hint">
             {android
